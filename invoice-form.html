@@ -76,25 +76,26 @@
     <button class="btn-gen" onclick="submitInvoice()">Generate & Save Invoice</button>
 
     <script>
-        const API_URL = "https://script.google.com/macros/s/AKfycbwKgib802NVM4Mn31in9KhfoMHPA9b2tubCMLq7lDrCmthRNyryOiPaAT5FBrnL_qto/exec";
+        const API_URL = "https://script.google.com/macros/s/AKfycby0GnBKxFfBBblY8ytczEMp26iYJ-SAmuSmqOUScBvChd0mDBSZe9rLQRL5sF3SHvgA/exec";
         const user = JSON.parse(localStorage.getItem("user"));
         let taxPercent = 0;
-        let clientsArray = []; // To store fetched client data for autofill
+        let clientsArray = [];
 
         window.onload = async () => {
             document.getElementById("display-date").innerText = new Date().toLocaleDateString();
             addNewRow(); 
             
-            if (!user || !user.id) return alert("Session expired.");
+            if (!user || !user.id || !user.sheetId) return alert("Session expired. Please login again.");
 
             try {
-                // Fetch ID
-                const idRes = await fetch(`${API_URL}?action=getNextId&userId=${encodeURIComponent(user.id)}`);
+                // Fetch ID from PRIVATE SHEET (added sheetId)
+                const idRes = await fetch(`${API_URL}?action=getNextId&userId=${encodeURIComponent(user.id)}&sheetId=${user.sheetId}`);
                 const idData = await idRes.json();
                 document.getElementById("display-inv-id").innerText = idData.nextId;
 
-                // Fetch Settings
-                const setRes = await fetch(`${API_URL}?action=getSettings&id=${user.id}`);
+                // Fetch Settings from PRIVATE SHEET (added sheetId)
+                // Note: action "getSettings" must be handled in your GAS to open userSS
+                const setRes = await fetch(`${API_URL}?action=getSettings&userId=${user.id}&sheetId=${user.sheetId}`);
                 const setData = await setRes.json();
                 if(setData.status === "Success") {
                     taxPercent = parseFloat(setData.taxRate) || 0;
@@ -102,8 +103,8 @@
                     document.querySelectorAll(".curr-symbol").forEach(s => s.innerText = setData.currSymbol || "");
                 }
 
-                // NEW: Fetch Clients for the dropdown
-                const clientRes = await fetch(`${API_URL}?action=getClients&userId=${user.id}`);
+                // Fetch Clients from PRIVATE SHEET (added sheetId)
+                const clientRes = await fetch(`${API_URL}?action=getClients&userId=${user.id}&sheetId=${user.sheetId}`);
                 clientsArray = await clientRes.json();
                 const dataList = document.getElementById("client-list");
                 clientsArray.forEach(c => {
@@ -112,10 +113,12 @@
                     dataList.appendChild(option);
                 });
 
-            } catch (e) { document.getElementById("display-inv-id").innerText = "INV-1001"; }
+            } catch (e) { 
+                console.error("Initialization error:", e);
+                document.getElementById("display-inv-id").innerText = "INV-1001"; 
+            }
         };
 
-        // NEW: Auto-fill phone when client is selected from list
         function autoFillClient(val) {
             const found = clientsArray.find(c => c.name === val);
             if (found) {
@@ -183,6 +186,7 @@
 
             const payload = {
                 action: "saveInvoice",
+                sheetId: user.sheetId, // CRITICAL: Tells GAS which file to open
                 invoiceId: document.getElementById("display-inv-id").innerText,
                 userId: user.id,
                 clientName: client,
