@@ -58,7 +58,8 @@
 </div>
 
 <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbxrMfaDwpChTBu83fGnkm7g_0vwZMyA8FLaSPcXf1iddjIJ7JnUjHBp7Togg4G3yGPv/exec";
+    // Use your current Web App URL
+    const API_URL = "https://script.google.com/macros/s/AKfycbwpyyuTtbSv_2udttbXog8oUfq_vgFvr-y7DggVO-WXYkR4APnpB_0BS6TpSZLdnBrN/exec";
     const user = JSON.parse(localStorage.getItem("user"));
     let allData = [];
     let currentEditingId = "";
@@ -66,7 +67,10 @@
     window.onload = loadList;
 
     async function loadList() {
-        const response = await fetch(`${API_URL}?action=getInvoices&userId=${user.id}`);
+        if (!user || !user.sheetId) return;
+        
+        // Pass sheetId so GAS knows which file to open
+        const response = await fetch(`${API_URL}?action=getInvoices&sheetId=${user.sheetId}`);
         allData = await response.json();
         const tbody = document.getElementById("updateBody");
         tbody.innerHTML = "";
@@ -76,7 +80,7 @@
             tr.innerHTML = `
                 <td>${inv.invoiceId}</td>
                 <td>${inv.clientName}</td>
-                <td>${inv.total}</td>
+                <td>${parseFloat(inv.total).toFixed(2)}</td>
                 <td>
                     <button class="btn btn-edit" onclick="openEdit('${inv.invoiceId}')">Edit</button>
                     <button class="btn btn-del" onclick="deleteInv('${inv.invoiceId}')">Delete</button>
@@ -97,24 +101,44 @@
     }
 
     async function saveChanges() {
-        const updated = {
+        const payload = {
+            action: "updateInvoice",
+            sheetId: user.sheetId,
+            invoiceId: currentEditingId,
             clientName: document.getElementById("editName").value,
             clientPhone: document.getElementById("editPhone").value,
-            total: document.getElementById("editTotal").value,
-            items: JSON.parse(allData.find(i => i.invoiceId === currentEditingId).items) // Keeps existing items
+            total: document.getElementById("editTotal").value
         };
 
-        await fetch(`${API_URL}?action=updateInvoice&invoiceId=${currentEditingId}&data=${JSON.stringify(updated)}`);
-        alert("Invoice Updated!");
+        // Use POST for updates
+        await fetch(API_URL, {
+            method: "POST",
+            mode: "no-cors",
+            body: JSON.stringify(payload)
+        });
+
+        alert("Update request sent!");
         closeModal();
-        loadList();
+        // Give Google a second to process before refreshing
+        setTimeout(loadList, 1500);
     }
 
     async function deleteInv(id) {
         if (confirm("Are you sure you want to permanently DELETE invoice " + id + "?")) {
-            await fetch(`${API_URL}?action=deleteInvoice&invoiceId=${id}`);
-            alert("Invoice Deleted.");
-            loadList();
+            const payload = {
+                action: "deleteInvoice",
+                sheetId: user.sheetId,
+                invoiceId: id
+            };
+
+            await fetch(API_URL, {
+                method: "POST",
+                mode: "no-cors",
+                body: JSON.stringify(payload)
+            });
+
+            alert("Delete request sent!");
+            setTimeout(loadList, 1500);
         }
     }
 
@@ -127,6 +151,5 @@
         });
     }
 </script>
-
 </body>
 </html>
