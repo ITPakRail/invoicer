@@ -66,84 +66,91 @@
     </table>
 </div>
 <script>
+    // 1. Target your multi-tenant GAS deployment
     const API_URL = "https://script.google.com/macros/s/AKfycbwpyyuTtbSv_2udttbXog8oUfq_vgFvr-y7DggVO-WXYkR4APnpB_0BS6TpSZLdnBrN/exec";
     const user = JSON.parse(localStorage.getItem("user"));
 
-    // Function to strip time and get a pure date value for comparison
-    function normalizeDate(dateInput) {
-        const d = new Date(dateInput);
-        d.setHours(0, 0, 0, 0); // Truncate time stamp
-        return d.getTime();
-    }
-
- async function generateReport() {
-    const btn = document.querySelector('.btn-view');
-    const startInput = document.getElementById('start-date').value; // Already "YYYY-MM-DD"
-    const endInput = document.getElementById('end-date').value;   // Already "YYYY-MM-DD"
-
-    if (!startInput || !endInput) return alert("Select dates");
-
-    btn.innerText = "Searching...";
-    btn.disabled = true;
-
-    try {
-        // Multi-tenant: Fetch from the user's private sheetId
-        const response = await fetch(`${API_URL}?action=getInvoices&sheetId=${user.sheetId}`);
-        const allData = await response.json();
-        
-        const tbody = document.getElementById('report-body');
-        tbody.innerHTML = "";
-        
-        let count = 0;
-        let revenue = 0;
-
-        // The Old Model Logic: Compare as strings "YYYY-MM-DD"
-        // This avoids all Timezone and Timestamp issues.
-        allData.forEach(inv => {
-            let sheetDateStr = "";
-
-            // Convert Sheet Date (M/D/YYYY) to "YYYY-MM-DD" string
-            if (inv.date && typeof inv.date === 'string') {
-                const parts = inv.date.split("/"); // [M, D, YYYY]
-                if (parts.length === 3) {
-                    const mm = parts[0].padStart(2, '0');
-                    const dd = parts[1].padStart(2, '0');
-                    const yyyy = parts[2];
-                    sheetDateStr = `${yyyy}-${mm}-${dd}`;
-                }
-            }
-
-            // String comparison logic:
-            if (sheetDateStr >= startInput && sheetDateStr <= endInput) {
-                count++;
-                revenue += parseFloat(inv.total || 0);
-                
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${inv.date}</td>
-                    <td><strong>${inv.invoiceId}</strong></td>
-                    <td>${inv.clientName}</td>
-                    <td style="text-align:right">${parseFloat(inv.total).toFixed(2)}</td>
-                `;
-                tbody.appendChild(tr);
-            }
-        });
-
-        document.getElementById('total-count').innerText = count;
-        document.getElementById('total-revenue').innerText = revenue.toFixed(2);
-
-        if (count === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:30px;">No invoices found in this range.</td></tr>`;
+    window.onload = () => {
+        if (!user || !user.sheetId) {
+            alert("Please login first");
+            return;
         }
+        document.getElementById('biz-name').innerText = user.business + " Sales Report";
+        
+        const d = new Date();
+        document.getElementById('start-date').value = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+        document.getElementById('end-date').value = d.toISOString().split('T')[0];
+    };
 
-    } catch (err) {
-        console.error("Report Error:", err);
-        alert("Error loading data. Make sure 'getInvoices' is returning DisplayValues.");
-    } finally {
-        btn.innerText = "Generate Report";
-        btn.disabled = false;
+    async function generateReport() {
+        const btn = document.querySelector('.btn-view');
+        const startInput = document.getElementById('start-date').value; 
+        const endInput = document.getElementById('end-date').value;
+
+        if (!startInput || !endInput) return alert("Select dates");
+
+        btn.innerText = "Searching...";
+        btn.disabled = true;
+
+        try {
+            // MULTI-TENANT FIX: Fetch using sheetId
+            const response = await fetch(`${API_URL}?action=getInvoices&sheetId=${user.sheetId}`);
+            const allData = await response.json();
+            
+            const tbody = document.getElementById('report-body');
+            tbody.innerHTML = "";
+            
+            let count = 0;
+            let revenue = 0;
+
+            // EXACT PATTERN from your old code
+            const rangeStart = new Date(startInput + "T00:00:00").getTime();
+            const rangeEnd = new Date(endInput + "T23:59:59").getTime();
+
+            allData.forEach(inv => {
+                // Converting sheet date (M/D/YYYY) to a JS Date object
+                // This logic requires the date to be a string like "2/3/2026"
+                const parts = String(inv.date).split("/");
+                let invDate;
+                
+                if (parts.length === 3) {
+                    // Assumes sheet is M/D/YYYY
+                    invDate = new Date(parts[2], parts[0] - 1, parts[1]).getTime();
+                } else {
+                    // Fallback for ISO strings
+                    invDate = new Date(inv.date).getTime();
+                }
+
+                // The Math Comparison (EXACT PATTERN)
+                if (invDate >= rangeStart && invDate <= rangeEnd) {
+                    count++;
+                    revenue += parseFloat(inv.total || 0);
+                    
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${inv.date}</td>
+                        <td><strong>${inv.invoiceId}</strong></td>
+                        <td>${inv.clientName}</td>
+                        <td style="text-align:right">${parseFloat(inv.total).toFixed(2)}</td>
+                    `;
+                    tbody.appendChild(tr);
+                }
+            });
+
+            document.getElementById('total-count').innerText = count;
+            document.getElementById('total-revenue').innerText = revenue.toFixed(2);
+
+            if (count === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px;">No invoices found in this range.</td></tr>`;
+            }
+
+        } catch (err) {
+            console.error("Report Error:", err);
+            alert("Error loading data. Check console.");
+        } finally {
+            btn.innerText = "Generate Report";
+            btn.disabled = false;
+        }
     }
-}
-</script>
-</body>
+</script></body>
 </html>
