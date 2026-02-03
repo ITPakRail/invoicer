@@ -156,172 +156,92 @@
 </div>
 
 <script>
+    // 1. URL points to your Multi-Tenant GAS Deployment
     const API_URL = "https://script.google.com/macros/s/AKfycbwpyyuTtbSv_2udttbXog8oUfq_vgFvr-y7DggVO-WXYkR4APnpB_0BS6TpSZLdnBrN/exec";
-
-    document.getElementById('year').innerText = new Date().getFullYear();
-
-    function toggleMenu(id) {
-        const targetMenu = document.getElementById(id);
-        const isOpen = targetMenu.classList.contains('open');
-        document.querySelectorAll('.submenu').forEach(menu => menu.classList.remove('open'));
-        if (!isOpen) targetMenu.classList.add('open');
-    }
-
-    function openPwdModal() { document.getElementById('pwd-modal').classList.remove('hidden'); }
-    function closePwdModal() { 
-        document.getElementById('pwd-modal').classList.add('hidden');
-        document.getElementById('oldPass').value = '';
-        document.getElementById('newPass').value = '';
-    }
-
-    async function doLogin() {
-        const email = document.getElementById("l_email").value;
-        const pass = document.getElementById("l_pass").value;
-        const msg = document.getElementById("msg");
-        msg.innerText = "Checking...";
-
-        try {
-            const response = await fetch(`${API_URL}?action=login&email=${encodeURIComponent(email)}&password=${encodeURIComponent(pass)}`);
-            const result = await response.json();
-            if (result.status === "Success") {
-                localStorage.setItem("user", JSON.stringify(result));
-                setupDashboard(result);
-            } else { msg.innerText = "❌ Invalid Credentials"; }
-        } catch (e) { msg.innerText = "❌ Connection Error"; }
-    }
-
-    function setupDashboard(user) {
-        document.getElementById("auth-container").classList.add("hidden");
-        document.getElementById("main-dashboard").classList.remove("hidden");
-        document.getElementById("display-userid").innerText = "ID: " + user.id;
-        document.getElementById("display-username").innerText = "Welcome, " + user.name;
-        document.getElementById("display-bizname").innerText = user.business;
-
-        if(user.logo) {
-            document.getElementById("user-logo").src = user.logo;
-            document.getElementById("logo-wrapper").classList.remove("hidden");
-        }
-        loadDashboardStats(user.id);
-    }
-
-   // UPDATED FUNCTION TO FETCH STATISTICS FOR MULTI-TENANT MODEL
-    async function loadDashboardStats() {
-        // 1. Get user data from localStorage
-        const user = JSON.parse(localStorage.getItem("user"));
-        if (!user || !user.sheetId) return;
-
-        try {
-            // 2. Pass sheetId in the URL parameters
-            const [invRes, cliRes] = await Promise.all([
-                fetch(`${API_URL}?action=getInvoices&sheetId=${user.sheetId}`),
-                fetch(`${API_URL}?action=getClients&sheetId=${user.sheetId}`)
-            ]);
-            
-            const invoices = await invRes.json();
-            const clients = await cliRes.json();
-
-            // 3. Robust Array check to prevent .forEach errors
-            if (!Array.isArray(invoices)) {
-                console.error("Invoices data is not an array:", invoices);
-                return;
-            }
-
-            let totalAmt = 0;
-            let totalTax = 0;
-
-            invoices.forEach(inv => {
-                // Ensure we use the correct keys returned by your GAS getInvoices mapping
-                totalAmt += parseFloat(inv.total) || 0;
-                totalTax += parseFloat(inv.taxAmount) || 0;
-            });
-
-            // 4. Update the UI cards
-            document.getElementById("stat-inv").innerText = invoices.length;
-            document.getElementById("stat-cli").innerText = Array.isArray(clients) ? clients.length : 0;
-            document.getElementById("stat-amt").innerText = totalAmt.toFixed(2);
-            document.getElementById("stat-tax").innerText = totalTax.toFixed(2);
-            
-        } catch (e) { 
-            console.error("Dashboard Stats Error:", e); 
-        }
-    }
-    
-   async function savePassword() {
-    const oldPass = document.getElementById("oldPass").value;
-    const newPass = document.getElementById("newPass").value;
     const user = JSON.parse(localStorage.getItem("user"));
-    const saveBtn = document.getElementById("savePassBtn");
-    const pwdMsg = document.getElementById("pwd-msg");
-
-    if (!oldPass || !newPass) {
-        alert("Please fill in both fields.");
-        return;
-    }
-
-    saveBtn.innerText = "⏳ Updating...";
-    saveBtn.disabled = true;
-
-    try {
-        // We use text/plain to avoid CORS issues with GAS
-        const response = await fetch(API_URL, {
-            method: "POST",
-            body: JSON.stringify({ 
-                action: "changePassword", 
-                userId: user.id, 
-                oldPass: oldPass, 
-                newPass: newPass 
-            })
-        });
-
-        // Since fetch to GAS can return an opaque response in some modes,
-        // we handle the success path clearly.
-        alert("✅ Password updated successfully! Please login again.");
-        logout(); 
-
-    } catch (err) {
-        console.error(err);
-        // Fallback for GAS redirects
-        alert("✅ Password update request sent. Please re-login.");
-        logout();
-    }
-}
-    function goToDashboard() {
-    // Hide the iframe container
-    document.getElementById('module-container').classList.add('hidden');
-    // Clear the frame src so it doesn't stay loaded in the background
-    document.getElementById('content-frame').src = "";
-    // Show the statistics and welcome message
-    document.getElementById('welcome-msg').classList.remove('hidden');
-    
-    // Refresh stats to ensure they are up to date
-    const user = JSON.parse(localStorage.getItem("user"));
-    if (user) loadDashboardStats(user.id);
-}
-    function showSection(id) {
-        document.getElementById('welcome-msg').classList.add('hidden');
-        document.getElementById('module-container').classList.remove('hidden');
-        const frame = document.getElementById('content-frame');
-        
-        const routes = {
-            'create': 'invoice-form.html',
-            'view-all': 'view-all.html',
-            'update': 'update.html',
-            'report': 'reports.html',
-            'add-client': 'add-client.html',
-            'view-clients': 'view-clients.html',
-            'biz-settings': 'business-settings.html',
-            'tax-settings': 'tax-settings.html',
-            'currency-settings': 'currency-settings.html'
-        };
-        frame.src = routes[id] || "";
-    }
-
-    function logout() { localStorage.removeItem("user"); location.reload(); }
 
     window.onload = () => {
-        const savedUser = localStorage.getItem("user");
-        if (savedUser) setupDashboard(JSON.parse(savedUser));
+        if (!user || !user.sheetId) {
+            alert("Please login first");
+            return;
+        }
+        document.getElementById('biz-name').innerText = user.business + " Sales Report";
+        
+        // Default dates: 1st of month to today (Keep your original logic)
+        const d = new Date();
+        document.getElementById('start-date').value = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+        document.getElementById('end-date').value = d.toISOString().split('T')[0];
     };
+
+    async function generateReport() {
+        const btn = document.querySelector('.btn-view');
+        const startInput = document.getElementById('start-date').value; 
+        const endInput = document.getElementById('end-date').value;     
+
+        if (!startInput || !endInput) return alert("Select dates");
+
+        btn.innerText = "Searching...";
+        btn.disabled = true;
+
+        try {
+            // MULTI-TENANT CHANGE: Pass sheetId instead of userId to access private sheet
+            const response = await fetch(`${API_URL}?action=getInvoices&sheetId=${user.sheetId}`);
+            const allData = await response.json();
+            
+            const tbody = document.getElementById('report-body');
+            tbody.innerHTML = "";
+            
+            let count = 0;
+            let revenue = 0;
+
+            // KEEP OLD VERSION DATE LOGIC
+            const rangeStart = new Date(startInput + "T00:00:00").getTime();
+            const rangeEnd = new Date(endInput + "T23:59:59").getTime();
+
+            allData.forEach(inv => {
+                // Convert sheet date (M/D/YYYY) to a JS Date object
+                const parts = inv.date.split("/");
+                let invDate;
+                
+                if (parts.length === 3) {
+                    // Assumes sheet is M/D/YYYY (Old Model Format)
+                    invDate = new Date(parts[2], parts[0] - 1, parts[1]).getTime();
+                } else {
+                    // Fallback for ISO strings
+                    invDate = new Date(inv.date).getTime();
+                }
+
+                // Comparison Logic
+                if (invDate >= rangeStart && invDate <= rangeEnd) {
+                    count++;
+                    revenue += parseFloat(inv.total || 0);
+                    
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${inv.date}</td>
+                        <td><strong>${inv.invoiceId}</strong></td>
+                        <td>${inv.clientName}</td>
+                        <td style="text-align:right">${parseFloat(inv.total).toFixed(2)}</td>
+                    `;
+                    tbody.appendChild(tr);
+                }
+            });
+
+            document.getElementById('total-count').innerText = count;
+            document.getElementById('total-revenue').innerText = revenue.toFixed(2);
+
+            if (count === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px;">No invoices found in this range.</td></tr>`;
+            }
+
+        } catch (err) {
+            console.error("Report Error:", err);
+            alert("Error loading data from your private sheet.");
+        } finally {
+            btn.innerText = "Generate Report";
+            btn.disabled = false;
+        }
+    }
 </script>
 </body>
 </html>
