@@ -81,22 +81,28 @@
 </div>
 
 <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbwKgib802NVM4Mn31in9KhfoMHPA9b2tubCMLq7lDrCmthRNyryOiPaAT5FBrnL_qto/exec"; 
-    let allClients = []; // Global storage for filtering
+ const API_URL = "https://script.google.com/macros/s/AKfycbwpyyuTtbSv_2udttbXog8oUfq_vgFvr-y7DggVO-WXYkR4APnpB_0BS6TpSZLdnBrN/exec"; 
+    let allClients = []; 
+
+    // Helper to get user from storage
+    const getUser = () => JSON.parse(localStorage.getItem("user"));
 
     async function loadClients() {
-        const user = JSON.parse(localStorage.getItem("user"));
-        if(!user) return alert("Please login first");
+        const user = getUser();
+        if(!user || !user.sheetId) return alert("Please login first");
 
         try {
-            const response = await fetch(`${API_URL}?action=getClients&userId=${user.id}`);
+            // Pass sheetId to fetch from the correct private spreadsheet
+            const response = await fetch(`${API_URL}?action=getClients&sheetId=${user.sheetId}`);
             allClients = await response.json();
+            
             renderTable(allClients);
             
             document.getElementById("loader").classList.add("hidden");
             document.getElementById("clientTable").classList.remove("hidden");
         } catch (err) {
-            document.getElementById("loader").innerText = "❌ Error loading clients. Check API URL.";
+            document.getElementById("loader").innerText = "❌ Error loading clients.";
+            console.error(err);
         }
     }
 
@@ -104,20 +110,24 @@
         const tbody = document.getElementById("clientBody");
         tbody.innerHTML = "";
         
+        if (data.length === 0) {
+            tbody.innerHTML = "<tr><td colspan='5' style='text-align:center;'>No clients found.</td></tr>";
+            return;
+        }
+
         data.forEach(c => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><strong>${c.name}</strong></td>
                 <td>${c.phone}</td>
-                <td>${c.email}</td>
-                <td>${c.address}</td>
+                <td>${c.email || 'N/A'}</td>
+                <td>${c.address || 'N/A'}</td>
                 <td>
                     <button class="btn-edit">Edit</button>
                     <button class="btn-del">Delete</button>
                 </td>
             `;
 
-            // Attach events safely to avoid breaking HTML with special characters
             tr.querySelector('.btn-edit').onclick = () => openEditModal(c);
             tr.querySelector('.btn-del').onclick = () => deleteClient(c.id);
             
@@ -129,8 +139,8 @@
         document.getElementById("editId").value = client.id;
         document.getElementById("editName").value = client.name;
         document.getElementById("editPhone").value = client.phone;
-        document.getElementById("editEmail").value = client.email;
-        document.getElementById("editAddress").value = client.address;
+        document.getElementById("editEmail").value = client.email || "";
+        document.getElementById("editAddress").value = client.address || "";
         document.getElementById("editModal").classList.remove("hidden");
     }
 
@@ -139,12 +149,14 @@
     }
 
     async function updateClient() {
+        const user = getUser();
         const saveBtn = document.querySelector("#editModal .btn-edit");
         saveBtn.innerText = "Saving...";
         saveBtn.disabled = true;
 
-        const data = {
+        const payload = {
             action: "updateClient",
+            sheetId: user.sheetId,
             clientId: document.getElementById("editId").value,
             name: document.getElementById("editName").value,
             phone: document.getElementById("editPhone").value,
@@ -153,40 +165,40 @@
         };
 
         try {
-            const resp = await fetch(API_URL, { method: "POST", body: JSON.stringify(data) });
-            alert("✅ Client Updated!");
-            location.reload();
+            await fetch(API_URL, { 
+                method: "POST", 
+                mode: "no-cors", 
+                body: JSON.stringify(payload) 
+            });
+            alert("✅ Client Update Request Sent!");
+            closeModal();
+            loadClients(); // Refresh list
         } catch (e) {
-            // Usually occurs due to Google redirects, but change succeeds
-            location.reload(); 
+            loadClients();
+        } finally {
+            saveBtn.innerText = "Update";
+            saveBtn.disabled = false;
         }
     }
 
    async function deleteClient(id) {
         if (!confirm("Are you sure you want to delete this client?")) return;
-
-        // Visual feedback
-        const loader = document.getElementById("loader");
-        loader.classList.remove("hidden");
-        loader.innerText = "🗑️ Deleting...";
+        const user = getUser();
 
         try {
-            const response = await fetch(API_URL, {
+            await fetch(API_URL, {
                 method: "POST",
+                mode: "no-cors",
                 body: JSON.stringify({
                     action: "deleteClient",
+                    sheetId: user.sheetId,
                     clientId: id
                 })
             });
-
-            // Even if it throws a CORS error, Google Script usually finishes the job
             alert("✅ Client deleted successfully!");
-            location.reload(); 
+            loadClients();
         } catch (e) {
-            // This catch often triggers on success due to Google's redirect policy
-            console.log("Note: Redirect handled.");
-            alert("✅ Client deleted successfully!");
-            location.reload();
+            loadClients();
         }
     }
 
@@ -194,8 +206,7 @@
         const q = document.getElementById("searchBar").value.toLowerCase();
         const filtered = allClients.filter(c => 
             c.name.toLowerCase().includes(q) || 
-            c.phone.toLowerCase().includes(q) || 
-            c.email.toLowerCase().includes(q)
+            c.phone.toLowerCase().includes(q)
         );
         renderTable(filtered);
     }
