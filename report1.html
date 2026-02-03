@@ -67,123 +67,139 @@
         </table>
     </div>
 
-    <script>
-        const API_URL = "https://script.google.com/macros/s/AKfycbwKgib802NVM4Mn31in9KhfoMHPA9b2tubCMLq7lDrCmthRNyryOiPaAT5FBrnL_qto/exec";
-        const user = JSON.parse(localStorage.getItem("user"));
+   <script>
+    // Ensure this matches your most recent GAS deployment
+    const API_URL = "https://script.google.com/macros/s/AKfycbwpyyuTtbSv_2udttbXog8oUfq_vgFvr-y7DggVO-WXYkR4APnpB_0BS6TpSZLdnBrN/exec"; 
+    const user = JSON.parse(localStorage.getItem("user"));
 
-        window.onload = async () => {
-            if (!user) return;
-            try {
-                const response = await fetch(`${API_URL}?action=getInvoices&userId=${user.id}`);
-                const invoices = await response.json();
+    window.onload = async () => {
+        if (!user || !user.sheetId) {
+            document.getElementById("loader").innerText = "❌ Session expired. Please login again.";
+            return;
+        }
+
+        try {
+            // MULTI-TENANT FIX: Use sheetId to fetch invoices from the private sheet
+            const response = await fetch(`${API_URL}?action=getInvoices&sheetId=${user.sheetId}`);
+            const invoices = await response.json();
+            
+            if (Array.isArray(invoices) && invoices.length > 0) {
                 processData(invoices);
-            } catch (e) {
-                document.getElementById("loader").innerText = "❌ Error loading report data.";
+            } else {
+                document.getElementById("loader").innerText = "ℹ️ No invoice data found to generate reports.";
             }
-        };
+        } catch (e) {
+            console.error("Report Error:", e);
+            document.getElementById("loader").innerText = "❌ Error loading report data.";
+        }
+    };
 
-        function processData(invoices) {
-            const monthlyData = {};
-            const clientData = {}; // <--- ADDED for client tracking
-            let totalTax = 0;
-            let totalAmt = 0;
+    function processData(invoices) {
+        const monthlyData = {};
+        const clientData = {}; 
+        let totalTax = 0;
+        let totalAmt = 0;
 
-            invoices.forEach(inv => {
-                let monthYear = "Unknown";
-                
-                if (inv.date) {
-                    let d = new Date(inv.date);
-                    if (isNaN(d.getTime()) && typeof inv.date === 'string') {
-                        const parts = inv.date.split(/[/ -]/); 
-                        if (parts.length >= 3) {
-                            d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-                        }
-                    }
-
-                    if (!isNaN(d.getTime())) {
-                        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-                        monthYear = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
-                    }
-                }
-                
-                // Monthly Data (Unchanged)
-                monthlyData[monthYear] = (monthlyData[monthYear] || 0) + parseFloat(inv.total || 0);
-                
-                // Client Data (ADDED Logic)
-                const cName = inv.clientName || "Unknown Client";
-                if (!clientData[cName]) {
-                    clientData[cName] = { count: 0, total: 0 };
-                }
-                clientData[cName].count += 1;
-                clientData[cName].total += parseFloat(inv.total || 0);
-
-                totalTax += parseFloat(inv.taxAmount || 0);
-                totalAmt += parseFloat(inv.total || 0);
-            });
-
-            renderChart(monthlyData);
-            renderClientTable(clientData); // <--- ADDED call to render table
-
-            // Stats Update (Unchanged)
-            const months = Object.keys(monthlyData).filter(m => m !== "Unknown");
-            months.sort((a, b) => new Date(a) - new Date(b));
+        invoices.forEach(inv => {
+            let monthYear = "Unknown";
             
-            const values = Object.values(monthlyData);
-            if (values.length > 0) {
-                const maxVal = Math.max(...values);
-                const monthsArray = Object.keys(monthlyData);
-                const topMonth = monthsArray[values.indexOf(maxVal)];
-                document.getElementById("high-month").innerText = topMonth;
+            // Handle various date formats from the sheet
+            if (inv.date) {
+                let d = new Date(inv.date);
+                // If standard parsing fails, try manual split (DD/MM/YYYY)
+                if (isNaN(d.getTime()) && typeof inv.date === 'string') {
+                    const parts = inv.date.split(/[/ -]/); 
+                    if (parts.length >= 3) {
+                        // Assuming DD/MM/YYYY format from Google Sheets
+                        d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+                    }
+                }
+
+                if (!isNaN(d.getTime())) {
+                    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                    monthYear = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+                }
             }
-
-            document.getElementById("avg-val").innerText = (totalAmt / (invoices.length || 1)).toFixed(2);
-            document.getElementById("total-tax").innerText = totalTax.toFixed(2);
-
-            document.getElementById("loader").style.display = "none";
-            document.getElementById("report-content").style.display = "block";
-        }
-
-        function renderChart(data) {
-            const ctx = document.getElementById('salesChart').getContext('2d');
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: Object.keys(data),
-                    datasets: [{
-                        label: 'Monthly Sales Amount',
-                        data: Object.values(data),
-                        backgroundColor: 'rgba(52, 152, 219, 0.6)',
-                        borderColor: 'rgba(52, 152, 219, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: { y: { beginAtZero: true } }
-                }
-            });
-        }
-
-        // NEW: Client Table Rendering Function
-        function renderClientTable(clientData) {
-            const tbody = document.getElementById("client-table-body");
-            tbody.innerHTML = "";
             
-            // Sort clients by highest revenue first
-            const sortedClients = Object.keys(clientData).sort((a, b) => clientData[b].total - clientData[a].total);
+            // Aggregating Monthly Data
+            monthlyData[monthYear] = (monthlyData[monthYear] || 0) + parseFloat(inv.total || 0);
+            
+            // Aggregating Client Data
+            const cName = inv.clientName || "Unknown Client";
+            if (!clientData[cName]) {
+                clientData[cName] = { count: 0, total: 0 };
+            }
+            clientData[cName].count += 1;
+            clientData[cName].total += parseFloat(inv.total || 0);
 
-            sortedClients.forEach(name => {
-                const row = `
-                    <tr>
-                        <td><strong>${name}</strong></td>
-                        <td><span class="badge">${clientData[name].count} Invoices</span></td>
-                        <td>${clientData[name].total.toFixed(2)}</td>
-                    </tr>
-                `;
-                tbody.innerHTML += row;
-            });
+            totalTax += parseFloat(inv.taxAmount || 0);
+            totalAmt += parseFloat(inv.total || 0);
+        });
+
+        renderChart(monthlyData);
+        renderClientTable(clientData);
+
+        // Calculate Highest Month
+        const validMonths = Object.keys(monthlyData).filter(m => m !== "Unknown");
+        if (validMonths.length > 0) {
+            const topMonth = validMonths.reduce((a, b) => monthlyData[a] > monthlyData[b] ? a : b);
+            document.getElementById("high-month").innerText = topMonth;
         }
-    </script>
+
+        // Update Stats Boxes
+        document.getElementById("avg-val").innerText = (totalAmt / (invoices.length || 1)).toFixed(2);
+        document.getElementById("total-tax").innerText = totalTax.toFixed(2);
+
+        // Reveal Content
+        document.getElementById("loader").style.display = "none";
+        document.getElementById("report-content").style.display = "block";
+    }
+
+    function renderChart(data) {
+        const ctx = document.getElementById('salesChart').getContext('2d');
+        // Sort months chronologically for the chart
+        const labels = Object.keys(data).sort((a, b) => new Date(a) - new Date(b));
+        const values = labels.map(l => data[l]);
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Monthly Revenue',
+                    data: values,
+                    backgroundColor: 'rgba(52, 152, 219, 0.7)',
+                    borderColor: '#2980b9',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, grid: { color: '#f0f0f0' } } }
+            }
+        });
+    }
+
+    function renderClientTable(clientData) {
+        const tbody = document.getElementById("client-table-body");
+        tbody.innerHTML = "";
+        
+        // Sort clients by revenue contribution (highest first)
+        const sortedClients = Object.keys(clientData).sort((a, b) => clientData[b].total - clientData[a].total);
+
+        sortedClients.forEach(name => {
+            const row = `
+                <tr>
+                    <td><strong>${name}</strong></td>
+                    <td><span class="badge">${clientData[name].count} Invoices</span></td>
+                    <td>${clientData[name].total.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                </tr>
+            `;
+            tbody.innerHTML += row;
+        });
+    }
+</script>
 </body>
 </html>
