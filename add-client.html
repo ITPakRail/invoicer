@@ -51,7 +51,7 @@
 
 <script>
     // URL to your GAS Deployment
-    const API_URL = "https://script.google.com/macros/s/AKfycbwKgib802NVM4Mn31in9KhfoMHPA9b2tubCMLq7lDrCmthRNyryOiPaAT5FBrnL_qto/exec";
+  const API_URL = "https://script.google.com/macros/s/AKfycbwpyyuTtbSv_2udttbXog8oUfq_vgFvr-y7DggVO-WXYkR4APnpB_0BS6TpSZLdnBrN/exec";
 
     async function saveClient() {
         const name = document.getElementById("clientName").value.trim();
@@ -61,56 +61,54 @@
         const statusMsg = document.getElementById("status-msg");
         const saveBtn = document.getElementById("saveBtn");
 
-        // Simple validation
         if (!name || !phone) {
             alert("Client Name and Phone are required.");
             return;
         }
 
-        // Get user info from parent localStorage
         const user = JSON.parse(localStorage.getItem("user"));
-        if (!user || !user.id) {
+        if (!user || !user.sheetId) {
             alert("Session expired. Please login again.");
             return;
         }
 
-        // Prepare UI
         saveBtn.disabled = true;
         saveBtn.innerText = "Saving...";
         statusMsg.innerText = "";
 
+        const payload = {
+            action: "saveClient",
+            sheetId: user.sheetId, // Critical for multi-tenant
+            userId: user.id,
+            clientId: "CLI-" + Math.floor(Math.random() * 9000 + 1000),
+            clientName: name,
+            phone: phone,
+            email: email,
+            address: address,
+            dateAdded: new Date().toLocaleDateString()
+        };
+
         try {
-            const response = await fetch(API_URL, {
+            await fetch(API_URL, {
                 method: "POST",
-                body: JSON.stringify({
-                    action: "saveClient",
-                    userId: user.id,
-                    clientName: name,
-                    phone: phone,
-                    email: email,
-                    address: address
-                })
+                mode: "no-cors", // Standard for GAS POST
+                body: JSON.stringify(payload)
             });
 
-            const result = await response.text();
-
-            if (result.includes("Success")) {
-                statusMsg.style.color = "green";
-                statusMsg.innerText = "✅ Client added successfully!";
-                // Clear form
-                document.getElementById("clientName").value = "";
-                document.getElementById("phone").value = "";
-                document.getElementById("email").value = "";
-                document.getElementById("address").value = "";
-            } else {
-                statusMsg.style.color = "red";
-                statusMsg.innerText = "❌ Error: " + result;
-            }
-        } catch (err) {
-            // Google Redirects often trigger the catch block even if successful
-            console.log("Redirect/Network Info:", err);
+            // Since no-cors doesn't return text, we assume success if no error is thrown
             statusMsg.style.color = "green";
-            statusMsg.innerText = "✅ Client saved!";
+            statusMsg.innerText = "✅ Client added successfully!";
+            
+            // Clear form
+            document.getElementById("clientName").value = "";
+            document.getElementById("phone").value = "";
+            document.getElementById("email").value = "";
+            document.getElementById("address").value = "";
+
+        } catch (err) {
+            console.error("Save Error:", err);
+            statusMsg.style.color = "red";
+            statusMsg.innerText = "❌ Network Error.";
         } finally {
             saveBtn.disabled = false;
             saveBtn.innerText = "Save Client";
