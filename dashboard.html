@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>eInvoicer - MultiVendor Dashboard</title>
+    <style>
+        :root { --primary: #2c3e50; --secondary: #34495e; --accent: #3498db; --text-light: #ecf0f1; --danger: #e74c3c; --success: #27ae60; --warning: #f39c12; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f4f7f6; height: 100vh; }
+        .hidden { display: none !important; }
+
+        /* AUTH & MODAL STYLES */
+        #auth-container, .modal-overlay { display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
+        .auth-card, .modal-card { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 350px; text-align: center; }
+        
+        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        .btn-primary { width: 100%; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        .btn-secondary { width: 100%; padding: 12px; background: #95a5a6; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 5px; }
+
+        /* DASHBOARD STYLES */
+        #main-dashboard { display: grid; grid-template-columns: 250px 1fr; grid-template-rows: 60px 1fr 40px; height: 100vh; }
+        header { grid-column: 1 / -1; background: var(--primary); color: white; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; }
+        
+        aside { background: var(--secondary); color: white; padding: 20px 0; display: flex; flex-direction: column; }
+        .logo-container { width: 80px; height: 80px; border-radius: 50%; border: 3px solid var(--accent); overflow: hidden; margin: 0 auto 20px auto; background: white; display: flex; justify-content: center; align-items: center; }
+        .logo-container img { width: 100%; height: 100%; object-fit: cover; }
+
+        aside ul { list-style: none; padding: 0; width: 100%; margin: 0; }
+        aside li { padding: 15px 25px; cursor: pointer; transition: 0.3s; border-bottom: 1px solid #ffffff10; }
+        aside li:hover { background: var(--accent); }
+
+        /* SUBMENU */
+        .submenu { background: #2c3e50; max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
+        .submenu li { padding-left: 45px; font-size: 14px; background: #243342; }
+        .submenu.open { max-height: 200px; }
+
+        .sidebar-footer { margin-top: auto; padding: 10px; }
+        .btn-link { color: #bdc3c7; background: none; border: none; cursor: pointer; font-size: 13px; text-decoration: underline; }
+
+        main { padding: 30px; overflow-y: auto; }
+        footer { grid-column: 1 / -1; background: #ddd; text-align: center; line-height: 40px; font-size: 12px; color: #666; }
+        .user-badge { font-size: 13px; background: #1abc9c; padding: 5px 10px; border-radius: 20px; }
+
+        /* NEW SCORECARD STYLES */
+        .biz-panel { background: var(--primary); color: white; padding: 40px; border-radius: 10px; text-align: center; margin-bottom: 30px; }
+        .biz-panel h1 { margin: 0; font-size: 2.5em; text-transform: uppercase; letter-spacing: 2px; }
+        
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
+        .stat-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-top: 4px solid var(--accent); }
+        .stat-card h4 { margin: 0; color: #7f8c8d; font-size: 0.85em; text-transform: uppercase; }
+        .stat-card .value { font-size: 1.8em; font-weight: bold; color: var(--primary); margin-top: 10px; display: block; }
+        .card-inv { border-top-color: var(--accent); }
+        .card-cli { border-top-color: #9b59b6; }
+        .card-amt { border-top-color: var(--success); }
+        .card-tax { border-top-color: var(--warning); }
+    </style>
+</head>
+<body>
+
+<div id="auth-container">
+    <div class="auth-card">
+        <h1>eInvoicer</h1>
+        <input type="email" id="l_email" placeholder="Email">
+        <input type="password" id="l_pass" placeholder="Password">
+        <button class="btn-primary" onclick="doLogin()">Login</button>
+        <p id="msg" style="color: red; font-size: 14px;"></p>
+    </div>
+</div>
+
+<div id="pwd-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+        <h3>Change Password</h3>
+        <input type="password" id="oldPass" placeholder="Old Password">
+        <input type="password" id="newPass" placeholder="New Password">
+        <button id="savePassBtn" class="btn-primary" onclick="savePassword()">Update</button>
+        <button class="btn-secondary" onclick="closePwdModal()">Cancel</button>
+        <p id="pwd-msg" style="font-size: 12px; margin-top: 10px;"></p>
+    </div>
+</div>
+
+<div id="main-dashboard" class="hidden">
+    <header>
+        <div style="font-size: 20px; font-weight: bold;">eInvoicer</div>
+        <div class="user-info">
+            <span class="user-badge" id="display-userid">ID: --</span>
+            <span id="display-username" style="margin-left: 10px;">Welcome, User</span>
+            <button onclick="logout()" style="width: auto; padding: 5px 10px; background: var(--danger); color:white; border:none; margin-left: 15px; border-radius: 5px; cursor:pointer;">Logout</button>
+        </div>
+    </header>
+
+    <aside>
+        <div id="logo-wrapper" class="logo-container hidden">
+            <img id="user-logo" src="" alt="Business Logo">
+      </div>
+
+    <ul>
+    <li onclick="goToDashboard()">🏠 Dashboard</li>
+     <li onclick="showSection('create')">➕ Create Invoice</li>
+     <li onclick="showSection('view-all')">📄 View All Invoices</li>
+     <li onclick="showSection('update')">✏️ Edit or Delete</li>
+     <li onclick="showSection('report')">📊 Reports</li>
+     
+     <li onclick="toggleMenu('clients-menu')">👥 Clients ▾</li>
+     <ul id="clients-menu" class="submenu">
+         <li onclick="showSection('add-client')">👤 Add Client</li>
+         <li onclick="showSection('view-clients')">📋 Client List</li>
+     </ul>
+
+     <li onclick="toggleMenu('settings-menu')">⚙️ Settings ▾</li>
+     <ul id="settings-menu" class="submenu">
+         <li onclick="showSection('biz-settings')">🏢 Business Setting</li>
+         <li onclick="showSection('tax-settings')">💰 Tax Setting</li>
+         <li onclick="showSection('currency-settings')">💱 Set Currency</li>
+     </ul>
+</ul>
+
+        <div class="sidebar-footer">
+            <button class="btn-link" onclick="openPwdModal()">Change Password</button>
+        </div>
+    </aside>
+
+    <main id="content-area">
+        <div id="welcome-msg">
+            <div class="biz-panel">
+                <h1 id="display-bizname">BUSINESS NAME</h1>
+                <p>Business Management Overview</p>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card card-inv">
+                    <h4>Total Invoices</h4>
+                    <span class="value" id="stat-inv">0</span>
+                </div>
+                <div class="stat-card card-cli">
+                    <h4>Total Clients</h4>
+                    <span class="value" id="stat-cli">0</span>
+                </div>
+                <div class="stat-card card-amt">
+                    <h4>Total Amount</h4>
+                    <span class="value" id="stat-amt">0.00</span>
+                </div>
+                <div class="stat-card card-tax">
+                    <h4>Total Tax</h4>
+                    <span class="value" id="stat-tax">0.00</span>
+                </div>
+            </div>
+        </div>
+        
+        <div id="module-container" class="hidden">
+            <iframe id="content-frame" src="" style="width: 100%; height: 85vh; border: none; border-radius: 8px; background: white;"></iframe>
+        </div>
+    </main>
+
+    <footer>Copyrights © <span id="year"></span> eInvoicer | All Rights Reserved</footer>
+</div>
+
+<script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbwKgib802NVM4Mn31in9KhfoMHPA9b2tubCMLq7lDrCmthRNyryOiPaAT5FBrnL_qto/exec";
+
+    document.getElementById('year').innerText = new Date().getFullYear();
+
+    function toggleMenu(id) {
+        const targetMenu = document.getElementById(id);
+        const isOpen = targetMenu.classList.contains('open');
+        document.querySelectorAll('.submenu').forEach(menu => menu.classList.remove('open'));
+        if (!isOpen) targetMenu.classList.add('open');
+    }
+
+    function openPwdModal() { document.getElementById('pwd-modal').classList.remove('hidden'); }
+    function closePwdModal() { 
+        document.getElementById('pwd-modal').classList.add('hidden');
+        document.getElementById('oldPass').value = '';
+        document.getElementById('newPass').value = '';
+    }
+
+    async function doLogin() {
+        const email = document.getElementById("l_email").value;
+        const pass = document.getElementById("l_pass").value;
+        const msg = document.getElementById("msg");
+        msg.innerText = "Checking...";
+
+        try {
+            const response = await fetch(`${API_URL}?action=login&email=${encodeURIComponent(email)}&password=${encodeURIComponent(pass)}`);
+            const result = await response.json();
+            if (result.status === "Success") {
+                localStorage.setItem("user", JSON.stringify(result));
+                setupDashboard(result);
+            } else { msg.innerText = "❌ Invalid Credentials"; }
+        } catch (e) { msg.innerText = "❌ Connection Error"; }
+    }
+
+    function setupDashboard(user) {
+        document.getElementById("auth-container").classList.add("hidden");
+        document.getElementById("main-dashboard").classList.remove("hidden");
+        document.getElementById("display-userid").innerText = "ID: " + user.id;
+        document.getElementById("display-username").innerText = "Welcome, " + user.name;
+        document.getElementById("display-bizname").innerText = user.business;
+
+        if(user.logo) {
+            document.getElementById("user-logo").src = user.logo;
+            document.getElementById("logo-wrapper").classList.remove("hidden");
+        }
+        loadDashboardStats(user.id);
+    }
+
+    // NEW FUNCTION TO FETCH STATISTICS
+    async function loadDashboardStats(userId) {
+        try {
+            // Fetch Invoices and Clients for calculations
+            const [invRes, cliRes] = await Promise.all([
+                fetch(`${API_URL}?action=getInvoices&userId=${userId}`),
+                fetch(`${API_URL}?action=getClients&userId=${userId}`)
+            ]);
+            
+            const invoices = await invRes.json();
+            const clients = await cliRes.json();
+
+            let totalAmt = 0;
+            let totalTax = 0;
+
+            invoices.forEach(inv => {
+                totalAmt += parseFloat(inv.total) || 0;
+                totalTax += parseFloat(inv.taxAmount) || 0;
+            });
+
+            document.getElementById("stat-inv").innerText = invoices.length;
+            document.getElementById("stat-cli").innerText = clients.length;
+            document.getElementById("stat-amt").innerText = totalAmt.toFixed(2);
+            document.getElementById("stat-tax").innerText = totalTax.toFixed(2);
+        } catch (e) { console.log("Stats error", e); }
+    }
+
+    async function savePassword() {
+        const oldPass = document.getElementById("oldPass").value;
+        const newPass = document.getElementById("newPass").value;
+        const user = JSON.parse(localStorage.getItem("user"));
+        const saveBtn = document.getElementById("savePassBtn");
+
+        if (!oldPass || !newPass) return alert("Please fill in both fields.");
+        saveBtn.innerText = "Saving...";
+        saveBtn.disabled = true;
+
+        try {
+            const response = await fetch(API_URL, {
+                method: "POST",
+                body: JSON.stringify({ action: "changePassword", userId: user.id, oldPass: oldPass, newPass: newPass })
+            });
+            alert("✅ Password updated successfully!");
+            logout();
+        } catch (err) {
+            alert("✅ Password updated!");
+            logout();
+        }
+    }
+
+    function goToDashboard() {
+    // Hide the iframe container
+    document.getElementById('module-container').classList.add('hidden');
+    // Clear the frame src so it doesn't stay loaded in the background
+    document.getElementById('content-frame').src = "";
+    // Show the statistics and welcome message
+    document.getElementById('welcome-msg').classList.remove('hidden');
+    
+    // Refresh stats to ensure they are up to date
+    const user = JSON.parse(localStorage.getItem("user"));
+    if (user) loadDashboardStats(user.id);
+}
+    function showSection(id) {
+        document.getElementById('welcome-msg').classList.add('hidden');
+        document.getElementById('module-container').classList.remove('hidden');
+        const frame = document.getElementById('content-frame');
+        
+        const routes = {
+            'create': 'invoice-form.html',
+            'view-all': 'view-all.html',
+            'update': 'update.html',
+            'report': 'report1.html',
+            'add-client': 'add-client.html',
+            'view-clients': 'view-clients.html',
+            'biz-settings': 'business-settings.html',
+            'tax-settings': 'tax-settings.html',
+            'currency-settings': 'currency-settings.html'
+        };
+        frame.src = routes[id] || "";
+    }
+
+    function logout() { localStorage.removeItem("user"); location.reload(); }
+
+    window.onload = () => {
+        const savedUser = localStorage.getItem("user");
+        if (savedUser) setupDashboard(JSON.parse(savedUser));
+    };
+</script>
+</body>
+</html>

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        :root { --primary: #2c3e50; --accent: #3498db; --success: #27ae60; --gray: #95a5a6; }
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: white; }
+        .form-container { max-width: 450px; margin: auto; border: 1px solid #eee; padding: 25px; border-radius: 10px; box-shadow: 0 2px 15px rgba(0,0,0,0.05); }
+        h2 { color: var(--primary); border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin-top: 0; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        .button-group { display: flex; gap: 10px; margin-top: 20px; }
+        button { flex: 1; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; color: white; }
+        .btn-save { background: var(--success); }
+        .btn-cancel { background: var(--gray); }
+        #status { margin-top: 15px; text-align: center; font-weight: bold; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+<div class="form-container">
+    <h2>Tax Settings</h2>
+    <div class="form-group">
+        <label>Tax Name</label>
+        <input type="text" id="tax-name" placeholder="e.g. Sales Tax or VAT">
+    </div>
+    <div class="form-group">
+        <label>Tax Rate (%)</label>
+        <input type="number" id="tax-rate" placeholder="e.g. 5">
+    </div>
+
+    <div class="button-group">
+        <button class="btn-save" onclick="saveTax()">Save Tax Info</button>
+        <button class="btn-cancel" onclick="window.location.reload()">Cancel</button>
+    </div>
+    <div id="status"></div>
+</div>
+
+<script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbzt4GiAUOzRob_-HBaYax85VmvSX8aha1V46xXLO_UbLlaK5Wlt-sH500sug5nzGBfy_g/exec";
+    const user = JSON.parse(localStorage.getItem("user"));
+
+    // Fetch existing settings on load
+    window.onload = async () => {
+        const status = document.getElementById('status');
+        status.innerText = "⏳ Loading current settings...";
+        try {
+            const res = await fetch(`${API_URL}?action=getSettings&id=${user.id}`);
+            const data = await res.json();
+            if(data.status === "Success") {
+                document.getElementById('tax-name').value = data.taxName || "";
+                document.getElementById('tax-rate').value = data.taxRate || "";
+                status.innerText = "";
+            } else {
+                status.innerText = "No settings found. Please create one.";
+            }
+        } catch (e) { status.innerText = ""; }
+    };
+
+    async function saveTax() {
+        const name = document.getElementById('tax-name').value;
+        const rate = document.getElementById('tax-rate').value;
+        const status = document.getElementById('status');
+
+        if(!name || !rate) { alert("Please fill all fields"); return; }
+
+        status.innerText = "⏳ Saving...";
+        const payload = {
+            action: "saveTax",
+            id: user.id,
+            taxName: name,
+            taxRate: rate
+        };
+
+        try {
+            await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+            status.style.color = "green";
+            status.innerText = "✅ Tax settings saved!";
+        } catch (e) {
+            status.innerText = "❌ Error saving data.";
+        }
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Reports</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: white; color: #2c3e50; }
+        .report-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid #f4f7f6; padding-bottom: 10px; }
+        .chart-container { position: relative; height: 35vh; width: 100%; margin-bottom: 40px; }
+        .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-box { background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #eee; }
+        .stat-box h3 { margin: 0; color: #7f8c8d; font-size: 0.8em; text-transform: uppercase; }
+        .stat-box p { margin: 5px 0 0 0; font-size: 1.4em; font-weight: bold; color: #2c3e50; }
+        
+        /* Table Styles */
+        .client-table { width: 100%; border-collapse: collapse; margin-top: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .client-table th { background: #34495e; color: white; padding: 12px; text-align: left; }
+        .client-table td { padding: 12px; border-bottom: 1px solid #eee; }
+        .client-table tr:hover { background: #f9f9f9; }
+        .badge { background: #27ae60; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; }
+        
+        #loader { text-align: center; padding: 50px; font-size: 1.2em; color: #3498db; }
+    </style>
+</head>
+<body>
+
+    <div class="report-header">
+        <h2>📈 Sales Performance Report</h2>
+        <button onclick="window.print()" style="padding: 8px 15px; cursor: pointer; background: #34495e; color: white; border: none; border-radius: 4px;">Print Report</button>
+    </div>
+
+    <div id="loader">Gathering data and generating charts...</div>
+
+    <div id="report-content" class="hidden" style="display:none;">
+        <div class="chart-container">
+            <canvas id="salesChart"></canvas>
+        </div>
+
+        <div class="stats-row">
+            <div class="stat-box">
+                <h3>Highest Month</h3>
+                <p id="high-month">-</p>
+            </div>
+            <div class="stat-box">
+                <h3>Avg. Invoice Value</h3>
+                <p id="avg-val">0.00</p>
+            </div>
+            <div class="stat-box">
+                <h3>Total Tax Collected</h3>
+                <p id="total-tax">0.00</p>
+            </div>
+        </div>
+
+        <h3>👥 Revenue by Client</h3>
+        <table class="client-table">
+            <thead>
+                <tr>
+                    <th>Client Name</th>
+                    <th>Invoices</th>
+                    <th>Total Contribution</th>
+                </tr>
+            </thead>
+            <tbody id="client-table-body">
+                </tbody>
+        </table>
+    </div>
+
+    <script>
+        const API_URL = "https://script.google.com/macros/s/AKfycbwKgib802NVM4Mn31in9KhfoMHPA9b2tubCMLq7lDrCmthRNyryOiPaAT5FBrnL_qto/exec";
+        const user = JSON.parse(localStorage.getItem("user"));
+
+        window.onload = async () => {
+            if (!user) return;
+            try {
+                const response = await fetch(`${API_URL}?action=getInvoices&userId=${user.id}`);
+                const invoices = await response.json();
+                processData(invoices);
+            } catch (e) {
+                document.getElementById("loader").innerText = "❌ Error loading report data.";
+            }
+        };
+
+        function processData(invoices) {
+            const monthlyData = {};
+            const clientData = {}; // <--- ADDED for client tracking
+            let totalTax = 0;
+            let totalAmt = 0;
+
+            invoices.forEach(inv => {
+                let monthYear = "Unknown";
+                
+                if (inv.date) {
+                    let d = new Date(inv.date);
+                    if (isNaN(d.getTime()) && typeof inv.date === 'string') {
+                        const parts = inv.date.split(/[/ -]/); 
+                        if (parts.length >= 3) {
+                            d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+                        }
+                    }
+
+                    if (!isNaN(d.getTime())) {
+                        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                        monthYear = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+                    }
+                }
+                
+                // Monthly Data (Unchanged)
+                monthlyData[monthYear] = (monthlyData[monthYear] || 0) + parseFloat(inv.total || 0);
+                
+                // Client Data (ADDED Logic)
+                const cName = inv.clientName || "Unknown Client";
+                if (!clientData[cName]) {
+                    clientData[cName] = { count: 0, total: 0 };
+                }
+                clientData[cName].count += 1;
+                clientData[cName].total += parseFloat(inv.total || 0);
+
+                totalTax += parseFloat(inv.taxAmount || 0);
+                totalAmt += parseFloat(inv.total || 0);
+            });
+
+            renderChart(monthlyData);
+            renderClientTable(clientData); // <--- ADDED call to render table
+
+            // Stats Update (Unchanged)
+            const months = Object.keys(monthlyData).filter(m => m !== "Unknown");
+            months.sort((a, b) => new Date(a) - new Date(b));
+            
+            const values = Object.values(monthlyData);
+            if (values.length > 0) {
+                const maxVal = Math.max(...values);
+                const monthsArray = Object.keys(monthlyData);
+                const topMonth = monthsArray[values.indexOf(maxVal)];
+                document.getElementById("high-month").innerText = topMonth;
+            }
+
+            document.getElementById("avg-val").innerText = (totalAmt / (invoices.length || 1)).toFixed(2);
+            document.getElementById("total-tax").innerText = totalTax.toFixed(2);
+
+            document.getElementById("loader").style.display = "none";
+            document.getElementById("report-content").style.display = "block";
+        }
+
+        function renderChart(data) {
+            const ctx = document.getElementById('salesChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(data),
+                    datasets: [{
+                        label: 'Monthly Sales Amount',
+                        data: Object.values(data),
+                        backgroundColor: 'rgba(52, 152, 219, 0.6)',
+                        borderColor: 'rgba(52, 152, 219, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        }
+
+        // NEW: Client Table Rendering Function
+        function renderClientTable(clientData) {
+            const tbody = document.getElementById("client-table-body");
+            tbody.innerHTML = "";
+            
+            // Sort clients by highest revenue first
+            const sortedClients = Object.keys(clientData).sort((a, b) => clientData[b].total - clientData[a].total);
+
+            sortedClients.forEach(name => {
+                const row = `
+                    <tr>
+                        <td><strong>${name}</strong></td>
+                        <td><span class="badge">${clientData[name].count} Invoices</span></td>
+                        <td>${clientData[name].total.toFixed(2)}</td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+        }
+    </script>
+</body>
+</html>

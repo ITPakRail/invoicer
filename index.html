@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>eInvoicer - MultiVendor</title>
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; padding: 50px; background: #f4f4f4; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 300px; }
+        input { width: 100%; padding: 10px; margin: 5px 0; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background: #2e7d32; color: white; border: none; cursor: pointer; margin-top: 10px; }
+        .hidden { display: none; }
+        .toggle { font-size: 12px; color: blue; cursor: pointer; text-align: center; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="card" id="authBox">
+    <h2 id="title">eInvoicer Login</h2>
+    
+    <div id="loginFields">
+        <input type="email" id="l_email" placeholder="Email">
+        <input type="password" id="l_pass" placeholder="Password">
+        <button onclick="doLogin()">Login</button>
+        <div class="toggle" onclick="toggleForm()">New user? Sign up</div>
+    </div>
+
+    <div id="signupFields" class="hidden">
+        <input type="text" id="s_name" placeholder="Full Name">
+        <input type="email" id="s_email" placeholder="Email">
+        <input type="password" id="s_pass" placeholder="Password">
+        <input type="text" id="s_phone" placeholder="Phone">
+        <input type="text" id="s_biz" placeholder="Business Name">
+        <label style="font-size: 12px; color: #666; margin-top: 10px; display: block;">Upload Business Logo</label>
+        <input type="file" id="s_logo" accept="image/*" onchange="previewLogo(this)">
+        <div id="logoPreview" style="margin: 5px 0; text-align: center;"></div>
+        <button onclick="doSignup()">Create Account</button>
+        <div class="toggle" onclick="toggleForm()">Back to Login</div>
+    </div>
+    
+    <p id="msg"></p>
+</div>
+
+<script>
+// Replace this with your CURRENT Web App URL
+const API_URL = "https://script.google.com/macros/s/AKfycbwKgib802NVM4Mn31in9KhfoMHPA9b2tubCMLq7lDrCmthRNyryOiPaAT5FBrnL_qto/exec"; 
+
+let globalLogoBase64 = ""; // Variable to store the logo string
+
+function toggleForm() {
+    document.getElementById('loginFields').classList.toggle('hidden');
+    document.getElementById('signupFields').classList.toggle('hidden');
+    document.getElementById('title').innerText = document.getElementById('loginFields').classList.contains('hidden') ? "eInvoicer Signup" : "eInvoicer Login";
+}
+
+function previewLogo(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            globalLogoBase64 = e.target.result; // Save the base64 string
+            document.getElementById('logoPreview').innerHTML = 
+                `<img src="${globalLogoBase64}" style="height: 50px; border-radius: 4px; border: 1px solid #ddd;">`;
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+async function doSignup() {
+    const name = document.getElementById("s_name").value;
+    const email = document.getElementById("s_email").value;
+    const pass = document.getElementById("s_pass").value;
+    const biz = document.getElementById("s_biz").value;
+
+    if(!name || !email || !pass || !biz) {
+        alert("Please fill all required fields");
+        return;
+    }
+
+    const payload = {
+        action: "signup",
+        name: name,
+        email: email,
+        password: pass,
+        phone: document.getElementById("s_phone").value,
+        business: biz,
+        logo: globalLogoBase64 // Now properly defined
+    };
+
+    document.getElementById("msg").innerText = "Registering...";
+    
+    try {
+        await fetch(API_URL, {
+            method: "POST",
+            mode: "no-cors",
+            body: JSON.stringify(payload)
+        });
+
+        document.getElementById("msg").innerText = "✅ Signup request sent. Try logging in now.";
+        // Reset logo for next time
+        globalLogoBase64 = "";
+        document.getElementById('logoPreview').innerHTML = "";
+        toggleForm();
+    } catch (err) {
+        document.getElementById("msg").innerText = "❌ Error during signup.";
+        console.error(err);
+    }
+}
+
+async function doLogin() {
+    const email = document.getElementById("l_email").value;
+    const pass = document.getElementById("l_pass").value;
+    const msg = document.getElementById("msg");
+    msg.innerText = "Authenticating...";
+
+    const loginUrl = `${API_URL}?action=login&email=${encodeURIComponent(email)}&password=${encodeURIComponent(pass)}`;
+
+    try {
+        const response = await fetch(loginUrl);
+        const result = await response.json();
+        
+        if (result.status === "Success") {
+            // This result object will now include the logo string from the sheet
+            localStorage.setItem("user", JSON.stringify(result));
+            alert("Success! Welcome " + result.name);
+            window.location.href = "dashboard.html";
+        } else {
+            msg.innerText = "❌ Invalid Credentials";
+        }
+    } catch (error) {
+        msg.innerText = "❌ Connection Error.";
+        console.error("Fetch Error:", error);
+    }
+}
+</script>
+</body>
+</html>

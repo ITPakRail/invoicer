@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        :root { --primary: #2c3e50; --accent: #3498db; --success: #27ae60; --gray: #95a5a6; }
+        body { font-family: 'Segoe UI', sans-serif; background: white; margin: 0; padding: 20px; color: #333; }
+        .form-container { max-width: 500px; margin: auto; border: 1px solid #eee; padding: 25px; border-radius: 10px; box-shadow: 0 2px 15px rgba(0,0,0,0.05); }
+        h2 { color: var(--primary); margin-top: 0; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; }
+        input[type="text"], input[type="tel"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        .logo-preview-container { display: flex; align-items: center; gap: 15px; margin-top: 10px; }
+        #logo-preview { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid #ddd; background: #f9f9f9; }
+        .button-group { display: flex; gap: 10px; margin-top: 20px; }
+        button { flex: 1; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .btn-update { background: var(--success); color: white; }
+        .btn-cancel { background: var(--gray); color: white; }
+        #status-msg { margin-top: 15px; text-align: center; font-size: 14px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="form-container">
+    <h2>Business Settings</h2>
+    
+    <div class="form-group">
+        <label>Business Name</label>
+        <input type="text" id="biz-name" placeholder="Enter Business Name">
+    </div>
+
+    <div class="form-group">
+        <label>Phone Number</label>
+        <input type="tel" id="biz-phone" placeholder="Enter Phone Number">
+    </div>
+
+    <div class="form-group">
+        <label>Business Logo</label>
+        <input type="file" id="logo-input" accept="image/*" onchange="previewImage(this)">
+        <div class="logo-preview-container">
+            <img id="logo-preview" src="https://via.placeholder.com/80" alt="Logo Preview">
+        </div>
+    </div>
+
+    <div class="button-group">
+        <button class="btn-update" onclick="updateBusiness()">Update Settings</button>
+        <button class="btn-cancel" onclick="resetForm()">Cancel</button>
+    </div>
+
+    <div id="status-msg"></div>
+</div>
+
+<script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbzt4GiAUOzRob_-HBaYax85VmvSX8aha1V46xXLO_UbLlaK5Wlt-sH500sug5nzGBfy_g/exec";
+    let base64Logo = "";
+
+    window.onload = () => {
+        const user = JSON.parse(localStorage.getItem("user"));
+        if (user) {
+            document.getElementById("biz-name").value = user.business || "";
+            document.getElementById("biz-phone").value = user.phone || "";
+            if (user.logo) {
+                document.getElementById("logo-preview").src = user.logo;
+                base64Logo = user.logo;
+            }
+        }
+    };
+
+    function previewImage(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById("logo-preview").src = e.target.result;
+                base64Logo = e.target.result;
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    // CORRECTED FRONTEND FUNCTION
+    async function updateBusiness() {
+        const user = JSON.parse(localStorage.getItem("user"));
+        const bizName = document.getElementById("biz-name").value;
+        const bizPhone = document.getElementById("biz-phone").value;
+        const status = document.getElementById("status-msg");
+
+        if (!bizName || !bizPhone) {
+            alert("Please fill in Business Name and Phone.");
+            return;
+        }
+
+        status.innerText = "⏳ Updating...";
+
+        const payload = {
+            action: "updateBusiness",
+            id: user.id,
+            business: bizName,
+            phone: bizPhone,
+            logo: base64Logo
+        };
+
+        try {
+            // Using text/plain to avoid CORS preflight issues with GAS
+            await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+
+            // Update local storage so dashboard updates without login
+            user.business = bizName;
+            user.phone = bizPhone;
+            user.logo = base64Logo;
+            localStorage.setItem("user", JSON.stringify(user));
+
+            status.innerText = "✅ Success! Refreshing...";
+            setTimeout(() => { window.parent.location.reload(); }, 1500);
+
+        } catch (error) {
+            status.innerText = "❌ Error: " + error.message;
+        }
+    }
+
+    function resetForm() {
+        window.location.reload();
+    }
+</script>
+
+</body>
+</html>

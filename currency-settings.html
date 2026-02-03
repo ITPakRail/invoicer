@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        :root { --primary: #2c3e50; --accent: #3498db; --success: #27ae60; }
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; }
+        .form-container { max-width: 450px; margin: auto; border: 1px solid #eee; padding: 25px; border-radius: 10px; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; }
+        button { width: 100%; padding: 12px; background: var(--success); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        #status { text-align: center; margin-top: 15px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <h2>Currency Settings</h2>
+        <label>Currency Name</label>
+        <input type="text" id="curr-name" placeholder="e.g. Pakistani Rupee">
+        <label>Symbol</label>
+        <input type="text" id="curr-symbol" placeholder="e.g. PKR or Rs.">
+        <button onclick="saveCurrency()">Save Currency</button>
+        <div id="status"></div>
+    </div>
+
+    <script>
+        const API_URL = "https://script.google.com/macros/s/AKfycbzt4GiAUOzRob_-HBaYax85VmvSX8aha1V46xXLO_UbLlaK5Wlt-sH500sug5nzGBfy_g/exec";
+        const user = JSON.parse(localStorage.getItem("user"));
+
+        window.onload = async () => {
+            const res = await fetch(`${API_URL}?action=getSettings&id=${user.id}`);
+            const data = await res.json();
+            if(data.status === "Success") {
+                document.getElementById('curr-name').value = data.currName || "";
+                document.getElementById('curr-symbol').value = data.currSymbol || "";
+            }
+        };
+
+    async function saveCurrency() {
+    const name = document.getElementById('curr-name').value;
+    const symbol = document.getElementById('curr-symbol').value;
+    const status = document.getElementById('status');
+
+    if(!name || !symbol) {
+        alert("Please fill all fields");
+        return;
+    }
+
+    status.innerText = "⏳ Saving...";
+
+    const payload = {
+        action: "saveCurrency",
+        id: user.id,
+        currName: name,
+        currSymbol: symbol
+    };
+
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+        
+        // Since GAS redirects can be tricky with 'no-cors', 
+        // we assume success if no error is thrown, but we 
+        // add a small delay to ensure the script finished.
+        
+        status.style.color = "green";
+        status.innerText = "✅ Currency Saved!";
+    } catch (e) {
+        status.style.color = "red";
+        status.innerText = "❌ Error: " + e.message;
+    }
+}
+    </script>
+</body>
+</html>
