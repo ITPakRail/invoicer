@@ -204,33 +204,48 @@
         loadDashboardStats(user.id);
     }
 
-    // NEW FUNCTION TO FETCH STATISTICS
-    async function loadDashboardStats(userId) {
+   // UPDATED FUNCTION TO FETCH STATISTICS FOR MULTI-TENANT MODEL
+    async function loadDashboardStats() {
+        // 1. Get user data from localStorage
+        const user = JSON.parse(localStorage.getItem("user"));
+        if (!user || !user.sheetId) return;
+
         try {
-            // Fetch Invoices and Clients for calculations
+            // 2. Pass sheetId in the URL parameters
             const [invRes, cliRes] = await Promise.all([
-                fetch(`${API_URL}?action=getInvoices&userId=${userId}`),
-                fetch(`${API_URL}?action=getClients&userId=${userId}`)
+                fetch(`${API_URL}?action=getInvoices&sheetId=${user.sheetId}`),
+                fetch(`${API_URL}?action=getClients&sheetId=${user.sheetId}`)
             ]);
             
             const invoices = await invRes.json();
             const clients = await cliRes.json();
 
+            // 3. Robust Array check to prevent .forEach errors
+            if (!Array.isArray(invoices)) {
+                console.error("Invoices data is not an array:", invoices);
+                return;
+            }
+
             let totalAmt = 0;
             let totalTax = 0;
 
             invoices.forEach(inv => {
+                // Ensure we use the correct keys returned by your GAS getInvoices mapping
                 totalAmt += parseFloat(inv.total) || 0;
                 totalTax += parseFloat(inv.taxAmount) || 0;
             });
 
+            // 4. Update the UI cards
             document.getElementById("stat-inv").innerText = invoices.length;
-            document.getElementById("stat-cli").innerText = clients.length;
+            document.getElementById("stat-cli").innerText = Array.isArray(clients) ? clients.length : 0;
             document.getElementById("stat-amt").innerText = totalAmt.toFixed(2);
             document.getElementById("stat-tax").innerText = totalTax.toFixed(2);
-        } catch (e) { console.log("Stats error", e); }
+            
+        } catch (e) { 
+            console.error("Dashboard Stats Error:", e); 
+        }
     }
-
+    
     async function savePassword() {
         const oldPass = document.getElementById("oldPass").value;
         const newPass = document.getElementById("newPass").value;
