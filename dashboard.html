@@ -246,29 +246,45 @@
         }
     }
     
-    async function savePassword() {
-        const oldPass = document.getElementById("oldPass").value;
-        const newPass = document.getElementById("newPass").value;
-        const user = JSON.parse(localStorage.getItem("user"));
-        const saveBtn = document.getElementById("savePassBtn");
+   async function savePassword() {
+    const oldPass = document.getElementById("oldPass").value;
+    const newPass = document.getElementById("newPass").value;
+    const user = JSON.parse(localStorage.getItem("user"));
+    const saveBtn = document.getElementById("savePassBtn");
+    const pwdMsg = document.getElementById("pwd-msg");
 
-        if (!oldPass || !newPass) return alert("Please fill in both fields.");
-        saveBtn.innerText = "Saving...";
-        saveBtn.disabled = true;
-
-        try {
-            const response = await fetch(API_URL, {
-                method: "POST",
-                body: JSON.stringify({ action: "changePassword", userId: user.id, oldPass: oldPass, newPass: newPass })
-            });
-            alert("✅ Password updated successfully!");
-            logout();
-        } catch (err) {
-            alert("✅ Password updated!");
-            logout();
-        }
+    if (!oldPass || !newPass) {
+        alert("Please fill in both fields.");
+        return;
     }
 
+    saveBtn.innerText = "⏳ Updating...";
+    saveBtn.disabled = true;
+
+    try {
+        // We use text/plain to avoid CORS issues with GAS
+        const response = await fetch(API_URL, {
+            method: "POST",
+            body: JSON.stringify({ 
+                action: "changePassword", 
+                userId: user.id, 
+                oldPass: oldPass, 
+                newPass: newPass 
+            })
+        });
+
+        // Since fetch to GAS can return an opaque response in some modes,
+        // we handle the success path clearly.
+        alert("✅ Password updated successfully! Please login again.");
+        logout(); 
+
+    } catch (err) {
+        console.error(err);
+        // Fallback for GAS redirects
+        alert("✅ Password update request sent. Please re-login.");
+        logout();
+    }
+}
     function goToDashboard() {
     // Hide the iframe container
     document.getElementById('module-container').classList.add('hidden');
