@@ -66,27 +66,20 @@
     </table>
 </div>
 <script>
-    // 1. URL points to your Multi-Tenant GAS Deployment
     const API_URL = "https://script.google.com/macros/s/AKfycbwpyyuTtbSv_2udttbXog8oUfq_vgFvr-y7DggVO-WXYkR4APnpB_0BS6TpSZLdnBrN/exec";
     const user = JSON.parse(localStorage.getItem("user"));
 
-    window.onload = () => {
-        if (!user || !user.sheetId) {
-            alert("Please login first");
-            return;
-        }
-        document.getElementById('biz-name').innerText = user.business + " Sales Report";
-        
-        // Default dates: 1st of month to today (Keep your original logic)
-        const d = new Date();
-        document.getElementById('start-date').value = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
-        document.getElementById('end-date').value = d.toISOString().split('T')[0];
-    };
+    // Function to strip time and get a pure date value for comparison
+    function normalizeDate(dateInput) {
+        const d = new Date(dateInput);
+        d.setHours(0, 0, 0, 0); // Truncate time stamp
+        return d.getTime();
+    }
 
     async function generateReport() {
         const btn = document.querySelector('.btn-view');
-        const startInput = document.getElementById('start-date').value; 
-        const endInput = document.getElementById('end-date').value;     
+        const startInput = document.getElementById('start-date').value; // YYYY-MM-DD
+        const endInput = document.getElementById('end-date').value;   // YYYY-MM-DD
 
         if (!startInput || !endInput) return alert("Select dates");
 
@@ -94,7 +87,7 @@
         btn.disabled = true;
 
         try {
-            // MULTI-TENANT CHANGE: Pass sheetId instead of userId to access private sheet
+            // Multi-tenant: Fetch from the user's private sheetId
             const response = await fetch(`${API_URL}?action=getInvoices&sheetId=${user.sheetId}`);
             const allData = await response.json();
             
@@ -104,25 +97,27 @@
             let count = 0;
             let revenue = 0;
 
-            // KEEP OLD VERSION DATE LOGIC
-            const rangeStart = new Date(startInput + "T00:00:00").getTime();
-            const rangeEnd = new Date(endInput + "T23:59:59").getTime();
+            // 1. Normalize the Picker Dates (Standard Format)
+            const rangeStart = normalizeDate(startInput);
+            const rangeEnd = normalizeDate(endInput);
 
             allData.forEach(inv => {
-                // Convert sheet date (M/D/YYYY) to a JS Date object
-                const parts = inv.date.split("/");
+                // 2. Extract Date from Sheet Column (Ignore Timestamp)
                 let invDate;
+                const parts = inv.date.split("/");
                 
                 if (parts.length === 3) {
-                    // Assumes sheet is M/D/YYYY (Old Model Format)
-                    invDate = new Date(parts[2], parts[0] - 1, parts[1]).getTime();
+                    // Map M/D/YYYY from sheet to JS Date object (Month is 0-indexed)
+                    invDate = new Date(parts[2], parts[0] - 1, parts[1]);
                 } else {
-                    // Fallback for ISO strings
-                    invDate = new Date(inv.date).getTime();
+                    invDate = new Date(inv.date);
                 }
 
-                // Comparison Logic
-                if (invDate >= rangeStart && invDate <= rangeEnd) {
+                // 3. Truncate Time from the Sheet record
+                const normalizedInvDate = normalizeDate(invDate);
+
+                // 4. Match both as in the old version
+                if (normalizedInvDate >= rangeStart && normalizedInvDate <= rangeEnd) {
                     count++;
                     revenue += parseFloat(inv.total || 0);
                     
@@ -141,7 +136,7 @@
             document.getElementById('total-revenue').innerText = revenue.toFixed(2);
 
             if (count === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px;">No invoices found in this range.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:30px;">No invoices found in this range.</td></tr>`;
             }
 
         } catch (err) {
