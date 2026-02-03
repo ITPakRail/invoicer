@@ -76,77 +76,74 @@
         return d.getTime();
     }
 
-    async function generateReport() {
-        const btn = document.querySelector('.btn-view');
-        const startInput = document.getElementById('start-date').value; // YYYY-MM-DD
-        const endInput = document.getElementById('end-date').value;   // YYYY-MM-DD
+ async function generateReport() {
+    const btn = document.querySelector('.btn-view');
+    const startInput = document.getElementById('start-date').value; // Already "YYYY-MM-DD"
+    const endInput = document.getElementById('end-date').value;   // Already "YYYY-MM-DD"
 
-        if (!startInput || !endInput) return alert("Select dates");
+    if (!startInput || !endInput) return alert("Select dates");
 
-        btn.innerText = "Searching...";
-        btn.disabled = true;
+    btn.innerText = "Searching...";
+    btn.disabled = true;
 
-        try {
-            // Multi-tenant: Fetch from the user's private sheetId
-            const response = await fetch(`${API_URL}?action=getInvoices&sheetId=${user.sheetId}`);
-            const allData = await response.json();
-            
-            const tbody = document.getElementById('report-body');
-            tbody.innerHTML = "";
-            
-            let count = 0;
-            let revenue = 0;
+    try {
+        // Multi-tenant: Fetch from the user's private sheetId
+        const response = await fetch(`${API_URL}?action=getInvoices&sheetId=${user.sheetId}`);
+        const allData = await response.json();
+        
+        const tbody = document.getElementById('report-body');
+        tbody.innerHTML = "";
+        
+        let count = 0;
+        let revenue = 0;
 
-            // 1. Normalize the Picker Dates (Standard Format)
-            const rangeStart = normalizeDate(startInput);
-            const rangeEnd = normalizeDate(endInput);
+        // The Old Model Logic: Compare as strings "YYYY-MM-DD"
+        // This avoids all Timezone and Timestamp issues.
+        allData.forEach(inv => {
+            let sheetDateStr = "";
 
-            allData.forEach(inv => {
-                // 2. Extract Date from Sheet Column (Ignore Timestamp)
-                let invDate;
-                const parts = inv.date.split("/");
-                
+            // Convert Sheet Date (M/D/YYYY) to "YYYY-MM-DD" string
+            if (inv.date && typeof inv.date === 'string') {
+                const parts = inv.date.split("/"); // [M, D, YYYY]
                 if (parts.length === 3) {
-                    // Map M/D/YYYY from sheet to JS Date object (Month is 0-indexed)
-                    invDate = new Date(parts[2], parts[0] - 1, parts[1]);
-                } else {
-                    invDate = new Date(inv.date);
+                    const mm = parts[0].padStart(2, '0');
+                    const dd = parts[1].padStart(2, '0');
+                    const yyyy = parts[2];
+                    sheetDateStr = `${yyyy}-${mm}-${dd}`;
                 }
-
-                // 3. Truncate Time from the Sheet record
-                const normalizedInvDate = normalizeDate(invDate);
-
-                // 4. Match both as in the old version
-                if (normalizedInvDate >= rangeStart && normalizedInvDate <= rangeEnd) {
-                    count++;
-                    revenue += parseFloat(inv.total || 0);
-                    
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td>${inv.date}</td>
-                        <td><strong>${inv.invoiceId}</strong></td>
-                        <td>${inv.clientName}</td>
-                        <td style="text-align:right">${parseFloat(inv.total).toFixed(2)}</td>
-                    `;
-                    tbody.appendChild(tr);
-                }
-            });
-
-            document.getElementById('total-count').innerText = count;
-            document.getElementById('total-revenue').innerText = revenue.toFixed(2);
-
-            if (count === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:30px;">No invoices found in this range.</td></tr>`;
             }
 
-        } catch (err) {
-            console.error("Report Error:", err);
-            alert("Error loading data from your private sheet.");
-        } finally {
-            btn.innerText = "Generate Report";
-            btn.disabled = false;
+            // String comparison logic:
+            if (sheetDateStr >= startInput && sheetDateStr <= endInput) {
+                count++;
+                revenue += parseFloat(inv.total || 0);
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${inv.date}</td>
+                    <td><strong>${inv.invoiceId}</strong></td>
+                    <td>${inv.clientName}</td>
+                    <td style="text-align:right">${parseFloat(inv.total).toFixed(2)}</td>
+                `;
+                tbody.appendChild(tr);
+            }
+        });
+
+        document.getElementById('total-count').innerText = count;
+        document.getElementById('total-revenue').innerText = revenue.toFixed(2);
+
+        if (count === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:30px;">No invoices found in this range.</td></tr>`;
         }
+
+    } catch (err) {
+        console.error("Report Error:", err);
+        alert("Error loading data. Make sure 'getInvoices' is returning DisplayValues.");
+    } finally {
+        btn.innerText = "Generate Report";
+        btn.disabled = false;
     }
+}
 </script>
 </body>
 </html>
