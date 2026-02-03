@@ -66,18 +66,18 @@
     </table>
 </div>
 <script>
-    // Ensure this matches your multi-tenant GAS deployment URL
-    const API_URL = "https://script.google.com/macros/s/AKfycbwpyyuTtbSv_2udttbXog8oUfq_vgFvr-y7DggVO-WXYkR4APnpB_0BS6TpSZLdnBrN/exec";
+    // 1. URL points to your Multi-Tenant GAS Deployment
+    const API_URL = "https://script.google.com/macros/s/AKfycbw2ZZ4qRJKpftL8N_VlhaixIvRHH9cqPGMiCb8-9GfQVnREcf6e17f8MwknDzmM32VFHA/exec";
     const user = JSON.parse(localStorage.getItem("user"));
 
     window.onload = () => {
         if (!user || !user.sheetId) {
-            alert("Session expired. Please login again.");
+            alert("Please login first");
             return;
         }
         document.getElementById('biz-name').innerText = user.business + " Sales Report";
         
-        // Set default date range (Current Month)
+        // Default dates: 1st of month to today (Keep your original logic)
         const d = new Date();
         document.getElementById('start-date').value = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
         document.getElementById('end-date').value = d.toISOString().split('T')[0];
@@ -85,16 +85,16 @@
 
     async function generateReport() {
         const btn = document.querySelector('.btn-view');
-        const startInput = document.getElementById('start-date').value;
-        const endInput = document.getElementById('end-date').value;
+        const startInput = document.getElementById('start-date').value; 
+        const endInput = document.getElementById('end-date').value;     
 
-        if (!startInput || !endInput) return alert("Please select both dates.");
+        if (!startInput || !endInput) return alert("Select dates");
 
-        btn.innerText = "🔍 Processing...";
+        btn.innerText = "Searching...";
         btn.disabled = true;
 
         try {
-            // MULTI-TENANT FIX: Use sheetId to fetch from private database
+            // MULTI-TENANT CHANGE: Pass sheetId instead of userId to access private sheet
             const response = await fetch(`${API_URL}?action=getInvoices&sheetId=${user.sheetId}`);
             const allData = await response.json();
             
@@ -104,60 +104,54 @@
             let count = 0;
             let revenue = 0;
 
-            // Define search boundaries
+            // KEEP OLD VERSION DATE LOGIC
             const rangeStart = new Date(startInput + "T00:00:00").getTime();
             const rangeEnd = new Date(endInput + "T23:59:59").getTime();
 
             allData.forEach(inv => {
-                let invTime;
+                // Convert sheet date (M/D/YYYY) to a JS Date object
+                const parts = inv.date.split("/");
+                let invDate;
                 
-                // Flexible Date Parsing for Sheets
-                if (inv.date.includes('/')) {
-                    const parts = inv.date.split("/"); // Assumes MM/DD/YYYY or DD/MM/YYYY
-                    // We try to create a valid date object. If your sheet is DD/MM/YYYY, 
-                    // use: new Date(parts[2], parts[1]-1, parts[0])
-                    invTime = new Date(parts[2], parts[0] - 1, parts[1]).getTime();
+                if (parts.length === 3) {
+                    // Assumes sheet is M/D/YYYY (Old Model Format)
+                    invDate = new Date(parts[2], parts[0] - 1, parts[1]).getTime();
                 } else {
-                    invTime = new Date(inv.date).getTime();
+                    // Fallback for ISO strings
+                    invDate = new Date(inv.date).getTime();
                 }
 
-                // Filter logic
-                if (invTime >= rangeStart && invTime <= rangeEnd) {
+                // Comparison Logic
+                if (invDate >= rangeStart && invDate <= rangeEnd) {
                     count++;
-                    const amount = parseFloat(inv.total || 0);
-                    revenue += amount;
+                    revenue += parseFloat(inv.total || 0);
                     
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
                         <td>${inv.date}</td>
                         <td><strong>${inv.invoiceId}</strong></td>
                         <td>${inv.clientName}</td>
-                        <td style="text-align:right">${amount.toFixed(2)}</td>
+                        <td style="text-align:right">${parseFloat(inv.total).toFixed(2)}</td>
                     `;
                     tbody.appendChild(tr);
                 }
             });
 
-            // Update UI Stats
             document.getElementById('total-count').innerText = count;
-            document.getElementById('total-revenue').innerText = revenue.toLocaleString(undefined, {
-                minimumFractionDigits: 2, 
-                maximumFractionDigits: 2
-            });
+            document.getElementById('total-revenue').innerText = revenue.toFixed(2);
 
             if (count === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:30px; color:#95a5a6;">No invoices found in this date range.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px;">No invoices found in this range.</td></tr>`;
             }
 
         } catch (err) {
             console.error("Report Error:", err);
-            alert("Failed to generate report. Ensure your private sheet has an 'invoices' tab.");
+            alert("Error loading data from your private sheet.");
         } finally {
             btn.innerText = "Generate Report";
             btn.disabled = false;
         }
     }
 </script>
-
 </body>
 </html>
