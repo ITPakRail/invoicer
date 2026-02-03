@@ -39,37 +39,43 @@
 </div>
 
 <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbzt4GiAUOzRob_-HBaYax85VmvSX8aha1V46xXLO_UbLlaK5Wlt-sH500sug5nzGBfy_g/exec";
+    const API_URL = "https://script.google.com/macros/s/AKfycbwpyyuTtbSv_2udttbXog8oUfq_vgFvr-y7DggVO-WXYkR4APnpB_0BS6TpSZLdnBrN/exec"; // Update this!
     const user = JSON.parse(localStorage.getItem("user"));
 
-    // Fetch existing settings on load
     window.onload = async () => {
+        if (!user || !user.sheetId) return;
         const status = document.getElementById('status');
         status.innerText = "⏳ Loading current settings...";
+        
         try {
-            const res = await fetch(`${API_URL}?action=getSettings&id=${user.id}`);
+            // Updated to use sheetId
+            const res = await fetch(`${API_URL}?action=getSettings&sheetId=${user.sheetId}`);
             const data = await res.json();
+            
             if(data.status === "Success") {
                 document.getElementById('tax-name').value = data.taxName || "";
                 document.getElementById('tax-rate').value = data.taxRate || "";
                 status.innerText = "";
-            } else {
-                status.innerText = "No settings found. Please create one.";
             }
-        } catch (e) { status.innerText = ""; }
+        } catch (e) { 
+            status.innerText = "Error fetching settings."; 
+        }
     };
 
     async function saveTax() {
-        const name = document.getElementById('tax-name').value;
-        const rate = document.getElementById('tax-rate').value;
+        const name = document.getElementById('tax-name').value.trim();
+        const rate = document.getElementById('tax-rate').value.trim();
         const status = document.getElementById('status');
 
         if(!name || !rate) { alert("Please fill all fields"); return; }
 
-        status.innerText = "⏳ Saving...";
+        status.style.color = "orange";
+        status.innerText = "⏳ Saving to your private sheet...";
+        
         const payload = {
             action: "saveTax",
-            id: user.id,
+            sheetId: user.sheetId, // Critical for multi-tenant
+            userId: user.id,
             taxName: name,
             taxRate: rate
         };
@@ -77,11 +83,14 @@
         try {
             await fetch(API_URL, {
                 method: 'POST',
+                mode: 'no-cors', // Avoids CORS issues with GAS
                 body: JSON.stringify(payload)
             });
+            
             status.style.color = "green";
-            status.innerText = "✅ Tax settings saved!";
+            status.innerText = "✅ Tax settings saved successfully!";
         } catch (e) {
+            status.style.color = "red";
             status.innerText = "❌ Error saving data.";
         }
     }
