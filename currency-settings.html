@@ -22,55 +22,70 @@
         <div id="status"></div>
     </div>
 
-    <script>
-        const API_URL = "https://script.google.com/macros/s/AKfycbzt4GiAUOzRob_-HBaYax85VmvSX8aha1V46xXLO_UbLlaK5Wlt-sH500sug5nzGBfy_g/exec";
-        const user = JSON.parse(localStorage.getItem("user"));
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbwpyyuTtbSv_2udttbXog8oUfq_vgFvr-y7DggVO-WXYkR4APnpB_0BS6TpSZLdnBrN/exec"; // Ensure this is your current Web App URL
+    const user = JSON.parse(localStorage.getItem("user"));
 
-        window.onload = async () => {
-            const res = await fetch(`${API_URL}?action=getSettings&id=${user.id}`);
+    // Fetch existing currency on load
+    window.onload = async () => {
+        if (!user || !user.sheetId) return;
+        const status = document.getElementById('status');
+        status.innerText = "⏳ Loading Currency...";
+
+        try {
+            // Updated to action=getCurrency and use sheetId
+            const res = await fetch(`${API_URL}?action=getCurrency&sheetId=${user.sheetId}`);
             const data = await res.json();
+            
             if(data.status === "Success") {
                 document.getElementById('curr-name').value = data.currName || "";
                 document.getElementById('curr-symbol').value = data.currSymbol || "";
+                status.innerText = "";
+            } else {
+                status.innerText = "No currency set yet.";
             }
-        };
-
-    async function saveCurrency() {
-    const name = document.getElementById('curr-name').value;
-    const symbol = document.getElementById('curr-symbol').value;
-    const status = document.getElementById('status');
-
-    if(!name || !symbol) {
-        alert("Please fill all fields");
-        return;
-    }
-
-    status.innerText = "⏳ Saving...";
-
-    const payload = {
-        action: "saveCurrency",
-        id: user.id,
-        currName: name,
-        currSymbol: symbol
+        } catch (e) { 
+            status.innerText = ""; 
+            console.log("New user or no settings found.");
+        }
     };
 
-    try {
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            body: JSON.stringify(payload)
-        });
-        
-        // Since GAS redirects can be tricky with 'no-cors', 
-        // we assume success if no error is thrown, but we 
-        // add a small delay to ensure the script finished.
-        
-        status.style.color = "green";
-        status.innerText = "✅ Currency Saved!";
-    } catch (e) {
-        status.style.color = "red";
-        status.innerText = "❌ Error: " + e.message;
+    async function saveCurrency() {
+        const name = document.getElementById('curr-name').value.trim();
+        const symbol = document.getElementById('curr-symbol').value.trim();
+        const status = document.getElementById('status');
+
+        if(!name || !symbol) { alert("Please fill all fields"); return; }
+
+        status.style.color = "orange";
+        status.innerText = "⏳ Saving Currency...";
+
+        const payload = {
+            action: "saveCurrency",
+            sheetId: user.sheetId, // Target private sheet
+            userId: user.id,
+            currName: name,
+            currSymbol: symbol
+        };
+
+        try {
+            await fetch(API_URL, {
+                method: 'POST',
+                mode: 'no-cors', // Essential to prevent CORS blocks
+                body: JSON.stringify(payload)
+            });
+
+            // Update local user object so currency appears correctly in other pages
+            user.currSymbol = symbol;
+            localStorage.setItem("user", JSON.stringify(user));
+
+            status.style.color = "green";
+            status.innerText = "✅ Currency Saved!";
+        } catch (e) {
+            status.style.color = "red";
+            status.innerText = "❌ Error saving currency.";
+        }
     }
-}
-    </script>
+</script>
 </body>
 </html>
