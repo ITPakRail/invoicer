@@ -43,7 +43,7 @@
 // Replace this with your CURRENT Web App URL
 const API_URL = "https://script.google.com/macros/s/AKfycby0GnBKxFfBBblY8ytczEMp26iYJ-SAmuSmqOUScBvChd0mDBSZe9rLQRL5sF3SHvgA/exec"; 
 
-let globalLogoBase64 = ""; // Variable to store the logo string
+let globalLogoBase64 = ""; 
 
 function toggleForm() {
     document.getElementById('loginFields').classList.toggle('hidden');
@@ -55,7 +55,7 @@ function previewLogo(input) {
     if (input.files && input.files[0]) {
         const reader = new FileReader();
         reader.onload = (e) => {
-            globalLogoBase64 = e.target.result; // Save the base64 string
+            globalLogoBase64 = e.target.result;
             document.getElementById('logoPreview').innerHTML = 
                 `<img src="${globalLogoBase64}" style="height: 50px; border-radius: 4px; border: 1px solid #ddd;">`;
         };
@@ -81,20 +81,20 @@ async function doSignup() {
         password: pass,
         phone: document.getElementById("s_phone").value,
         business: biz,
-        logo: globalLogoBase64 // Now properly defined
+        logo: globalLogoBase64 
     };
 
-    document.getElementById("msg").innerText = "Registering...";
+    document.getElementById("msg").innerText = "Registering (creating your database)...";
     
     try {
+        // We use mode: 'no-cors' for Google Apps Script POST to avoid redirect errors
         await fetch(API_URL, {
             method: "POST",
-          //  mode: "no-cors",
+            mode: "no-cors", 
             body: JSON.stringify(payload)
         });
 
-        document.getElementById("msg").innerText = "✅ Signup request sent. Try logging in now.";
-        // Reset logo for next time
+        document.getElementById("msg").innerText = "✅ Signup successful! Please log in.";
         globalLogoBase64 = "";
         document.getElementById('logoPreview').innerHTML = "";
         toggleForm();
@@ -117,7 +117,8 @@ async function doLogin() {
         const result = await response.json();
         
         if (result.status === "Success") {
-            // This result object will now include the logo string from the sheet
+            // result now contains: id, name, business, logo, AND sheetId
+            // This stores the private sheet ID into local storage automatically
             localStorage.setItem("user", JSON.stringify(result));
             alert("Success! Welcome " + result.name);
             window.location.href = "dashboard.html";
