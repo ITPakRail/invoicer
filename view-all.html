@@ -129,65 +129,49 @@
             } catch (err) { document.getElementById("loader").innerText = "⚠️ Error."; }
         }
 
-   function generatePDF(id, shouldDownload = true) {
-            try {
-                const inv = cachedInvoices.find(i => i.invoiceId === id);
-                if (!inv) return;
-                
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
-                const lang = localStorage.getItem("dashboardLang") || "en";
-                const t = i18n[lang];
+        // FIXED: This now collects data and opens the print dialog so users can "Save as PDF" with perfect Urdu
+        function generatePDF(id, shouldDownload = true) {
+            const inv = cachedInvoices.find(i => i.invoiceId === id);
+            if (!inv) return;
+            const lang = localStorage.getItem("dashboardLang") || "en";
+            const t = i18n[lang];
+            let items = [];
+            try { items = JSON.parse(inv.items); } catch(e) {}
+            
+            const printWin = window.open('', '_blank');
+            let rows = "";
+            items.forEach(i => { 
+                rows += `<tr><td>${i.description}</td><td>${i.qty}</td><td>${i.price}</td><td align="right">${parseFloat(i.amount).toFixed(2)}</td></tr>`; 
+            });
 
-                // Helper to prevent PDF crash: Removes Urdu characters that jsPDF can't read
-                const safeText = (str) => {
-                    return String(str).replace(/[^\x00-\x7F]/g, ""); 
-                };
-
-                doc.setFontSize(20);
-                doc.text(user.business || "Business Invoice", 14, 22);
-                
-                doc.setFontSize(10);
-                doc.text(`${t.thInvId}: ${inv.invoiceId}`, 14, 32);
-                doc.text(`${t.thDate}: ${inv.date}`, 14, 38);
-                
-                // Safe check for Urdu names to prevent download crash
-                doc.text(`${t.thClient}: ${safeText(inv.clientName)}`, 14, 44);
-
-                let items = [];
-                try { items = JSON.parse(inv.items); } catch(e) {}
-
-                const tableRows = items.map(i => [
-                    safeText(i.description), 
-                    i.qty, 
-                    i.price, 
-                    parseFloat(i.amount).toFixed(2)
-                ]);
-                
-                doc.autoTable({
-                    startY: 50,
-                    head: [[t.thDesc, t.thQty, t.thPrice, t.thTotal]],
-                    body: tableRows,
-                    theme: 'grid'
-                });
-
-                const finalY = doc.lastAutoTable.finalY + 10;
-                doc.setFontSize(12);
-                doc.text(`${t.thTotal}: ${parseFloat(inv.total).toFixed(2)}`, 14, finalY);
-
-                if (shouldDownload) {
-                    doc.save(`Invoice_${inv.invoiceId}.pdf`);
-                }
-                return doc;
-            } catch (err) {
-                console.error("PDF Generation Error:", err);
-                alert("Error generating PDF. Some characters may not be supported.");
-            }
+            const dir = lang === 'ur' ? 'rtl' : 'ltr';
+            const align = lang === 'ur' ? 'right' : 'left';
+            
+            printWin.document.write(`<html><head><style>
+                @import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu&display=swap');
+                body{font-family: 'Segoe UI', 'Noto Nastaliq Urdu', serif; padding:40px; direction:${dir}} 
+                table{width:100%; border-collapse:collapse; margin-top:20px} 
+                th,td{border:1px solid #ddd; padding:10px; text-align:${align}} 
+                th{background:#f4f4f4}
+                .total-area{text-align:${lang === 'ur' ? 'left' : 'right'}; margin-top:20px}
+            </style></head><body>
+                <h2>${user.business}</h2>
+                <p>${t.thInvId}: ${inv.invoiceId} | ${t.thDate}: ${inv.date}</p>
+                <p>${t.thClient}: ${inv.clientName}</p>
+                <table><thead><tr><th>${t.thDesc}</th><th>${t.thQty}</th><th>${t.thPrice}</th><th>${t.thTotal}</th></tr></thead>
+                <tbody>${rows}</tbody></table>
+                <div class="total-area"><h3>${t.thTotal}: ${parseFloat(inv.total).toFixed(2)}</h3></div>
+                <script>window.onload=function(){window.print();window.close();}<\/script>
+            </body></html>`);
+            printWin.document.close();
         }
         
         async function handleShare(id, platform) {
             const inv = cachedInvoices.find(i => i.invoiceId === id);
             if (!inv) return;
+
+            // Trigger the Print/Save as PDF dialog first
+            generatePDF(id, true);
 
             const lang = localStorage.getItem("dashboardLang") || "en";
             let items = [];
