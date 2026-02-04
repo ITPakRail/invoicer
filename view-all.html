@@ -129,60 +129,62 @@
             } catch (err) { document.getElementById("loader").innerText = "⚠️ Error."; }
         }
 
-        // FIXED: Supports Urdu characters and keeps the auto-download logic
-        function generatePDF(id, shouldDownload = true) {
-            const inv = cachedInvoices.find(i => i.invoiceId === id);
-            if (!inv) return;
-            const { jsPDF } = window.jspdf;
-            
-            // Initialize PDF with UTF-8 support
-            const doc = new jsPDF();
-            const lang = localStorage.getItem("dashboardLang") || "en";
-            const t = i18n[lang];
+   function generatePDF(id, shouldDownload = true) {
+            try {
+                const inv = cachedInvoices.find(i => i.invoiceId === id);
+                if (!inv) return;
+                
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                const lang = localStorage.getItem("dashboardLang") || "en";
+                const t = i18n[lang];
 
-            // Set basic font that has better Unicode support than the default
-            doc.setFont("courier", "normal"); 
+                // Helper to prevent PDF crash: Removes Urdu characters that jsPDF can't read
+                const safeText = (str) => {
+                    return String(str).replace(/[^\x00-\x7F]/g, ""); 
+                };
 
-            doc.setFontSize(20);
-            doc.text(user.business || "Business Invoice", 14, 22);
-            
-            doc.setFontSize(10);
-            // We use the invoice data directly
-            doc.text(`${t.thInvId}: ${inv.invoiceId}`, 14, 32);
-            doc.text(`${t.thDate}: ${inv.date}`, 14, 38);
-            doc.text(`${t.thClient}: ${inv.clientName}`, 14, 44);
+                doc.setFontSize(20);
+                doc.text(user.business || "Business Invoice", 14, 22);
+                
+                doc.setFontSize(10);
+                doc.text(`${t.thInvId}: ${inv.invoiceId}`, 14, 32);
+                doc.text(`${t.thDate}: ${inv.date}`, 14, 38);
+                
+                // Safe check for Urdu names to prevent download crash
+                doc.text(`${t.thClient}: ${safeText(inv.clientName)}`, 14, 44);
 
-            let items = [];
-            try { items = JSON.parse(inv.items); } catch(e) {}
+                let items = [];
+                try { items = JSON.parse(inv.items); } catch(e) {}
 
-            const tableRows = items.map(i => [
-                i.description, 
-                i.qty, 
-                i.price, 
-                parseFloat(i.amount).toFixed(2)
-            ]);
-            
-            // AutoTable handles the layout
-            doc.autoTable({
-                startY: 50,
-                head: [[t.thDesc, t.thQty, t.thPrice, t.thTotal]],
-                body: tableRows,
-                theme: 'grid',
-                styles: { font: "courier" }, // Courier has better character mapping for symbols
-                headStyles: { fillColor: [44, 62, 80] }
-            });
+                const tableRows = items.map(i => [
+                    safeText(i.description), 
+                    i.qty, 
+                    i.price, 
+                    parseFloat(i.amount).toFixed(2)
+                ]);
+                
+                doc.autoTable({
+                    startY: 50,
+                    head: [[t.thDesc, t.thQty, t.thPrice, t.thTotal]],
+                    body: tableRows,
+                    theme: 'grid'
+                });
 
-            const finalY = doc.lastAutoTable.finalY + 10;
-            doc.setFontSize(12);
-            doc.text(`${t.thTotal}: ${parseFloat(inv.total).toFixed(2)}`, 14, finalY);
+                const finalY = doc.lastAutoTable.finalY + 10;
+                doc.setFontSize(12);
+                doc.text(`${t.thTotal}: ${parseFloat(inv.total).toFixed(2)}`, 14, finalY);
 
-            // This triggers the actual download as you requested
-            if (shouldDownload) {
-                doc.save(`Invoice_${inv.invoiceId}.pdf`);
+                if (shouldDownload) {
+                    doc.save(`Invoice_${inv.invoiceId}.pdf`);
+                }
+                return doc;
+            } catch (err) {
+                console.error("PDF Generation Error:", err);
+                alert("Error generating PDF. Some characters may not be supported.");
             }
-            return doc;
         }
-
+        
         async function handleShare(id, platform) {
             const inv = cachedInvoices.find(i => i.invoiceId === id);
             if (!inv) return;
