@@ -2,7 +2,7 @@
 <html>
 <head>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: white; }
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: white; transition: all 0.3s; }
         .header-flex { display: flex; justify-content: space-between; margin-bottom: 20px; background: #f8f9fa; padding: 10px; border-radius: 5px; }
         table { width: 100%; border-collapse: collapse; }
         th { background: #2c3e50; color: white; padding: 10px; border: 1px solid #ddd; }
@@ -11,7 +11,12 @@
         input:focus { border-color: #3498db; }
         
         .total-container { margin-top: 20px; text-align: right; font-weight: bold; }
+        /* Adjusted for RTL compatibility */
+        body.rtl-mode .total-container { text-align: left; }
+        
         .total-row { display: flex; justify-content: flex-end; gap: 20px; margin-bottom: 5px; font-size: 1.1em; }
+        body.rtl-mode .total-row { justify-content: flex-start; flex-direction: row-reverse; }
+
         .grand-total-row { font-size: 1.6em; color: #2e7d32; border-top: 2px solid #2e7d32; display: inline-block; padding-top: 5px; min-width: 250px; }
         
         .btn-gen { background: #27ae60; color: white; padding: 15px; width: 100%; border: none; border-radius: 5px; cursor: pointer; font-size: 1.1em; margin-top: 20px; }
@@ -28,29 +33,29 @@
 <body>
 
     <div class="header-flex">
-        <div><strong>Invoice ID:</strong> <span id="display-inv-id">--</span></div>
-        <div><strong>Date:</strong> <span id="display-date">--</span></div>
+        <div><strong data-key="invIdLabel">Invoice ID:</strong> <span id="display-inv-id">--</span></div>
+        <div><strong data-key="dateLabel">Date:</strong> <span id="display-date">--</span></div>
     </div>
 
    <div style="margin-bottom: 20px; display: flex; gap: 10px;">
     <div style="flex: 2;">
-        <label><strong>Client Name:</strong></label>
-        <input type="text" id="client-name" list="client-list" placeholder="Select or Type Client Name" style="width: 100%; padding: 8px;" onchange="autoFillClient(this.value)">
+        <label><strong data-key="clientLabel">Client Name:</strong></label>
+        <input type="text" id="client-name" list="client-list" placeholder="Select or Type Client Name" data-placeholder="clientPlace" style="width: 100%; padding: 8px;" onchange="autoFillClient(this.value)">
         <datalist id="client-list"></datalist>
     </div>
     <div style="flex: 1;">
-        <label><strong>Phone (Optional):</strong></label>
-        <input type="text" id="client-phone" placeholder="e.g. 923001234567" style="width: 100%; padding: 8px;">
+        <label><strong data-key="phoneLabel">Phone (Optional):</strong></label>
+        <input type="text" id="client-phone" placeholder="e.g. 923001234567" data-placeholder="phonePlace" style="width: 100%; padding: 8px;">
     </div>
 </div>
 
     <table id="invoiceTable">
         <thead>
             <tr>
-                <th>Description</th>
-                <th width="80">Qty</th>
-                <th width="120">Price</th>
-                <th width="120">Amount</th>
+                <th data-key="thDesc">Description</th>
+                <th width="80" data-key="thQty">Qty</th>
+                <th width="120" data-key="thPrice">Price</th>
+                <th width="120" data-key="thAmt">Amount</th>
                 <th width="40" class="no-print"></th>
             </tr>
         </thead>
@@ -60,20 +65,20 @@
 
     <div class="total-container">
         <div class="total-row">
-            <span>Subtotal:</span>
+            <span data-key="lblSub">Subtotal:</span>
             <span><span class="curr-symbol"></span> <span id="sub-total">0.00</span></span>
         </div>
         <div class="total-row">
-            <span>Tax (<span id="tax-rate-display">0</span>%):</span>
+            <span><span data-key="lblTax">Tax</span> (<span id="tax-rate-display">0</span>%):</span>
             <span><span class="curr-symbol"></span> <span id="tax-amount">0.00</span></span>
         </div>
         <div class="total-row grand-total-row">
-            <span>Grand Total:</span>
+            <span data-key="lblGrand">Grand Total:</span>
             <span><span class="curr-symbol"></span> <span id="grand-total">0.00</span></span>
         </div>
     </div>
 
-    <button class="btn-gen" onclick="submitInvoice()">Generate & Save Invoice</button>
+    <button class="btn-gen" onclick="submitInvoice()" data-key="btnSave">Generate & Save Invoice</button>
 
     <script>
         const API_URL = "https://script.google.com/macros/s/AKfycbwpyyuTtbSv_2udttbXog8oUfq_vgFvr-y7DggVO-WXYkR4APnpB_0BS6TpSZLdnBrN/exec";
@@ -81,20 +86,62 @@
         let taxPercent = 0;
         let clientsArray = [];
 
+        // LANGUAGE DICTIONARY
+        const i18n = {
+            en: {
+                invIdLabel: "Invoice ID:", dateLabel: "Date:", clientLabel: "Client Name:", 
+                phoneLabel: "Phone (Optional):", thDesc: "Description", thQty: "Qty", 
+                thPrice: "Price", thAmt: "Amount", lblSub: "Subtotal:", lblTax: "Tax", 
+                lblGrand: "Grand Total:", btnSave: "Generate & Save Invoice",
+                clientPlace: "Select or Type Client Name", phonePlace: "e.g. 923001234567"
+            },
+            ur: {
+                invIdLabel: "انوائس نمبر:", dateLabel: "تاریخ:", clientLabel: "کلائنٹ کا نام:", 
+                phoneLabel: "فون (اختیاری):", thDesc: "تفصیل", thQty: "تعداد", 
+                thPrice: "قیمت", thAmt: "رقم", lblSub: "رقم:", lblTax: "ٹیکس", 
+                lblGrand: "کل رقم:", btnSave: "انوائس محفوظ کریں",
+                clientPlace: "کلائنٹ کا نام منتخب کریں", phonePlace: "مثلاً 923001234567"
+            }
+        };
+
+        function applyFormLanguage() {
+            const lang = localStorage.getItem("dashboardLang") || "en";
+            const t = i18n[lang];
+            
+            // Update Text
+            document.querySelectorAll('[data-key]').forEach(el => {
+                const key = el.getAttribute('data-key');
+                if (t[key]) el.innerText = t[key];
+            });
+
+            // Update Placeholders
+            document.querySelectorAll('[data-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-placeholder');
+                if (t[key]) el.placeholder = t[key];
+            });
+
+            // Handle RTL
+            if (lang === 'ur') {
+                document.body.classList.add('rtl-mode');
+                document.body.style.direction = 'rtl';
+            } else {
+                document.body.classList.remove('rtl-mode');
+                document.body.style.direction = 'ltr';
+            }
+        }
+
         window.onload = async () => {
+            applyFormLanguage();
             document.getElementById("display-date").innerText = new Date().toLocaleDateString();
             addNewRow(); 
             
             if (!user || !user.id || !user.sheetId) return alert("Session expired. Please login again.");
 
             try {
-                // Fetch ID from PRIVATE SHEET (added sheetId)
                 const idRes = await fetch(`${API_URL}?action=getNextId&userId=${encodeURIComponent(user.id)}&sheetId=${user.sheetId}`);
                 const idData = await idRes.json();
                 document.getElementById("display-inv-id").innerText = idData.nextId;
 
-                // Fetch Settings from PRIVATE SHEET (added sheetId)
-                // Note: action "getSettings" must be handled in your GAS to open userSS
                 const setRes = await fetch(`${API_URL}?action=getSettings&userId=${user.id}&sheetId=${user.sheetId}`);
                 const setData = await setRes.json();
                 if(setData.status === "Success") {
@@ -103,7 +150,6 @@
                     document.querySelectorAll(".curr-symbol").forEach(s => s.innerText = setData.currSymbol || "");
                 }
 
-                // Fetch Clients from PRIVATE SHEET (added sheetId)
                 const clientRes = await fetch(`${API_URL}?action=getClients&userId=${user.id}&sheetId=${user.sheetId}`);
                 clientsArray = await clientRes.json();
                 const dataList = document.getElementById("client-list");
@@ -130,7 +176,7 @@
             const tbody = document.getElementById("item-body");
             const tr = document.createElement("tr");
             tr.innerHTML = `
-                <td><input type="text" class="row-desc" placeholder="Item name..."></td>
+                <td><input type="text" class="row-desc" placeholder="..."></td>
                 <td><input type="number" class="row-qty" value="1" oninput="calculate()"></td>
                 <td><input type="number" class="row-price" value="0" oninput="calculate()" onblur="checkAutoRow(this)"></td>
                 <td class="row-amt" style="text-align:right">0.00</td>
@@ -169,7 +215,8 @@
             if (!client) return alert("Please enter Client Name");
 
             const btn = document.querySelector(".btn-gen");
-            btn.disabled = true; btn.innerText = "Saving...";
+            const originalText = btn.innerText;
+            btn.disabled = true; btn.innerText = "...";
 
             const items = [];
             document.querySelectorAll("#item-body tr").forEach(row => {
@@ -186,7 +233,7 @@
 
             const payload = {
                 action: "saveInvoice",
-                sheetId: user.sheetId, // CRITICAL: Tells GAS which file to open
+                sheetId: user.sheetId,
                 invoiceId: document.getElementById("display-inv-id").innerText,
                 userId: user.id,
                 clientName: client,
@@ -205,7 +252,7 @@
                 window.location.reload(); 
             } catch (err) {
                 alert("Error saving invoice.");
-                btn.disabled = false; btn.innerText = "Generate & Save Invoice";
+                btn.disabled = false; btn.innerText = originalText;
             }
         }
     </script>
