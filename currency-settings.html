@@ -2,38 +2,116 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap');
+
         :root { --primary: #2c3e50; --accent: #3498db; --success: #27ae60; }
-        body { font-family: 'Segoe UI', sans-serif; padding: 20px; }
-        .form-container { max-width: 450px; margin: auto; border: 1px solid #eee; padding: 25px; border-radius: 10px; }
-        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; }
-        button { width: 100%; padding: 12px; background: var(--success); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        #status { text-align: center; margin-top: 15px; font-weight: bold; }
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; transition: all 0.3s; }
+        
+        /* RTL & Urdu Support */
+        body.rtl-mode { direction: rtl; font-family: 'Noto Nastaliq Urdu', serif; }
+        body.rtl-mode .form-container { text-align: right; }
+        body.rtl-mode input { text-align: right; font-family: 'Noto Nastaliq Urdu', serif; }
+
+        .form-container { max-width: 450px; margin: auto; border: 1px solid #eee; padding: 25px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        h2 { color: var(--primary); margin-top: 0; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; }
+        input { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; outline: none; }
+        input:focus { border-color: var(--accent); }
+        
+        button { width: 100%; padding: 12px; background: var(--success); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.3s; }
+        button:hover { opacity: 0.9; }
+        
+        #status { text-align: center; margin-top: 15px; font-weight: bold; font-size: 14px; }
     </style>
 </head>
 <body>
     <div class="form-container">
-        <h2>Currency Settings</h2>
-        <label>Currency Name</label>
-        <input type="text" id="curr-name" placeholder="e.g. Pakistani Rupee">
-        <label>Symbol</label>
-        <input type="text" id="curr-symbol" placeholder="e.g. PKR or Rs.">
-        <button onclick="saveCurrency()">Save Currency</button>
+        <h2 data-key="title">Currency Settings</h2>
+        
+        <label data-key="lblCurrName">Currency Name</label>
+        <input type="text" id="curr-name" class="urdu-input" placeholder="e.g. Pakistani Rupee" data-placeholder="pCurrName">
+        
+        <label data-key="lblSymbol">Symbol</label>
+        <input type="text" id="curr-symbol" class="urdu-input" placeholder="e.g. PKR or Rs." data-placeholder="pSymbol">
+        
+        <button onclick="saveCurrency()" data-key="btnSave">Save Currency</button>
         <div id="status"></div>
     </div>
 
   <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbwpyyuTtbSv_2udttbXog8oUfq_vgFvr-y7DggVO-WXYkR4APnpB_0BS6TpSZLdnBrN/exec"; // Ensure this is your current Web App URL
+    const API_URL = "https://script.google.com/macros/s/AKfycbwpyyuTtbSv_2udttbXog8oUfq_vgFvr-y7DggVO-WXYkR4APnpB_0BS6TpSZLdnBrN/exec"; 
     const user = JSON.parse(localStorage.getItem("user"));
 
-    // Fetch existing currency on load
+    const i18n = {
+        en: {
+            title: "Currency Settings", lblCurrName: "Currency Name", lblSymbol: "Symbol",
+            btnSave: "Save Currency", pCurrName: "e.g. Pakistani Rupee", pSymbol: "e.g. PKR or Rs.",
+            loading: "⏳ Loading Currency...", noSet: "No currency set yet.",
+            saving: "⏳ Saving Currency...", success: "✅ Currency Saved!", error: "❌ Error saving currency.",
+            alertFields: "Please fill all fields"
+        },
+        ur: {
+            title: "کرنسی کی ترتیبات", lblCurrName: "کرنسی کا نام", lblSymbol: "علامت (Symbol)",
+            btnSave: "کرنسی محفوظ کریں", pCurrName: "مثلاً پاکستانی روپیہ", pSymbol: "مثلاً PKR یا Rs",
+            loading: "⏳ لوڈ ہو رہا ہے...", noSet: "ابھی تک کوئی کرنسی سیٹ نہیں کی گئی۔",
+            saving: "⏳ محفوظ ہو رہا ہے...", success: "✅ کرنسی محفوظ ہوگئی!", error: "❌ محفوظ کرنے میں خرابی۔",
+            alertFields: "براہ کرم تمام خانے پُر کریں۔"
+        }
+    };
+
+    const urduMap = {
+        'a': 'ا', 'b': 'ب', 'c': 'چ', 'd': 'د', 'e': 'ع', 'f': 'ف', 'g': 'گ', 'h': 'ہ', 'i': 'ی', 'j': 'ج',
+        'k': 'ک', 'l': 'ل', 'm': 'م', 'n': 'ن', 'o': 'ہ', 'p': 'پ', 'q': 'ق', 'r': 'ر', 's': 'س', 't': 'ت',
+        'u': 'و', 'v': 'ط', 'w': 'و', 'x': 'ش', 'y': 'ے', 'z': 'ز', 'A': 'آ', 'S': 'ص', 'D': 'ڈ', 'T': 'ٹ'
+    };
+
+    function applyLanguage() {
+        const lang = localStorage.getItem("dashboardLang") || "en";
+        const t = i18n[lang];
+        
+        document.querySelectorAll('[data-key]').forEach(el => {
+            const key = el.getAttribute('data-key');
+            if (t[key]) el.innerText = t[key];
+        });
+
+        document.querySelectorAll('[data-placeholder]').forEach(el => {
+            const key = el.getAttribute('data-placeholder');
+            if (t[key]) el.placeholder = t[key];
+        });
+
+        if (lang === 'ur') {
+            document.body.classList.add('rtl-mode');
+        } else {
+            document.body.classList.remove('rtl-mode');
+        }
+    }
+
+    // Urdu Typing Logic
+    document.addEventListener('keypress', (e) => {
+        const lang = localStorage.getItem("dashboardLang") || "en";
+        if (lang === 'ur' && e.target.classList.contains('urdu-input')) {
+            if (urduMap[e.key]) {
+                e.preventDefault();
+                const start = e.target.selectionStart;
+                const end = e.target.selectionEnd;
+                const text = e.target.value;
+                e.target.value = text.substring(0, start) + urduMap[e.key] + text.substring(end);
+                e.target.selectionStart = e.target.selectionEnd = start + 1;
+            }
+        }
+    });
+
     window.onload = async () => {
+        applyLanguage();
         if (!user || !user.sheetId) return;
+        
+        const lang = localStorage.getItem("dashboardLang") || "en";
         const status = document.getElementById('status');
-        status.innerText = "⏳ Loading Currency...";
+        status.innerText = i18n[lang].loading;
 
         try {
-            // Updated to action=getCurrency and use sheetId
             const res = await fetch(`${API_URL}?action=getCurrency&sheetId=${user.sheetId}`);
             const data = await res.json();
             
@@ -42,27 +120,28 @@
                 document.getElementById('curr-symbol').value = data.currSymbol || "";
                 status.innerText = "";
             } else {
-                status.innerText = "No currency set yet.";
+                status.innerText = i18n[lang].noSet;
             }
         } catch (e) { 
             status.innerText = ""; 
-            console.log("New user or no settings found.");
         }
     };
 
     async function saveCurrency() {
+        const lang = localStorage.getItem("dashboardLang") || "en";
+        const t = i18n[lang];
         const name = document.getElementById('curr-name').value.trim();
         const symbol = document.getElementById('curr-symbol').value.trim();
         const status = document.getElementById('status');
 
-        if(!name || !symbol) { alert("Please fill all fields"); return; }
+        if(!name || !symbol) { alert(t.alertFields); return; }
 
         status.style.color = "orange";
-        status.innerText = "⏳ Saving Currency...";
+        status.innerText = t.saving;
 
         const payload = {
             action: "saveCurrency",
-            sheetId: user.sheetId, // Target private sheet
+            sheetId: user.sheetId,
             userId: user.id,
             currName: name,
             currSymbol: symbol
@@ -71,19 +150,18 @@
         try {
             await fetch(API_URL, {
                 method: 'POST',
-                mode: 'no-cors', // Essential to prevent CORS blocks
+                mode: 'no-cors',
                 body: JSON.stringify(payload)
             });
 
-            // Update local user object so currency appears correctly in other pages
             user.currSymbol = symbol;
             localStorage.setItem("user", JSON.stringify(user));
 
             status.style.color = "green";
-            status.innerText = "✅ Currency Saved!";
+            status.innerText = t.success;
         } catch (e) {
             status.style.color = "red";
-            status.innerText = "❌ Error saving currency.";
+            status.innerText = t.error;
         }
     }
 </script>
