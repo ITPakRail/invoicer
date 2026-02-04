@@ -1,8 +1,17 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
     <style>
+        /* Import Urdu Font for professional look */
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap');
+
         body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: white; transition: all 0.3s; }
+        
+        /* Urdu Specific Styling */
+        body.rtl-mode { font-family: 'Noto Nastaliq Urdu', serif; direction: rtl; }
+        body.rtl-mode input { font-family: 'Noto Nastaliq Urdu', serif; text-align: right; }
+
         .header-flex { display: flex; justify-content: space-between; margin-bottom: 20px; background: #f8f9fa; padding: 10px; border-radius: 5px; }
         table { width: 100%; border-collapse: collapse; }
         th { background: #2c3e50; color: white; padding: 10px; border: 1px solid #ddd; }
@@ -11,7 +20,6 @@
         input:focus { border-color: #3498db; }
         
         .total-container { margin-top: 20px; text-align: right; font-weight: bold; }
-        /* Adjusted for RTL compatibility */
         body.rtl-mode .total-container { text-align: left; }
         
         .total-row { display: flex; justify-content: flex-end; gap: 20px; margin-bottom: 5px; font-size: 1.1em; }
@@ -40,7 +48,7 @@
    <div style="margin-bottom: 20px; display: flex; gap: 10px;">
     <div style="flex: 2;">
         <label><strong data-key="clientLabel">Client Name:</strong></label>
-        <input type="text" id="client-name" list="client-list" placeholder="Select or Type Client Name" data-placeholder="clientPlace" style="width: 100%; padding: 8px;" onchange="autoFillClient(this.value)">
+        <input type="text" id="client-name" class="urdu-input" list="client-list" placeholder="Select or Type Client Name" data-placeholder="clientPlace" style="width: 100%; padding: 8px;" onchange="autoFillClient(this.value)">
         <datalist id="client-list"></datalist>
     </div>
     <div style="flex: 1;">
@@ -86,7 +94,6 @@
         let taxPercent = 0;
         let clientsArray = [];
 
-        // LANGUAGE DICTIONARY
         const i18n = {
             en: {
                 invIdLabel: "Invoice ID:", dateLabel: "Date:", clientLabel: "Client Name:", 
@@ -104,31 +111,54 @@
             }
         };
 
+        // PHONETIC MAPPING (English keys to Urdu)
+        const urduMap = {
+            'a': 'ا', 'b': 'ب', 'c': 'چ', 'd': 'د', 'e': 'ع', 'f': 'ف', 'g': 'گ', 'h': 'ہ', 'i': 'ی', 'j': 'ج',
+            'k': 'ک', 'l': 'ل', 'm': 'م', 'n': 'ن', 'o': 'ہ', 'p': 'پ', 'q': 'ق', 'r': 'ر', 's': 'س', 't': 'ت',
+            'u': 'و', 'v': 'ط', 'w': 'و', 'x': 'ش', 'y': 'ے', 'z': 'ز', 'A': 'آ', 'S': 'ص', 'D': 'ڈ', 'T': 'ٹ'
+        };
+
+        function enableUrduTyping(e) {
+            const lang = localStorage.getItem("dashboardLang") || "en";
+            if (lang !== 'ur') return;
+
+            if (urduMap[e.key]) {
+                e.preventDefault();
+                const start = e.target.selectionStart;
+                const end = e.target.selectionEnd;
+                const text = e.target.value;
+                e.target.value = text.substring(0, start) + urduMap[e.key] + text.substring(end);
+                e.target.selectionStart = e.target.selectionEnd = start + 1;
+            }
+        }
+
         function applyFormLanguage() {
             const lang = localStorage.getItem("dashboardLang") || "en";
             const t = i18n[lang];
             
-            // Update Text
             document.querySelectorAll('[data-key]').forEach(el => {
                 const key = el.getAttribute('data-key');
                 if (t[key]) el.innerText = t[key];
             });
 
-            // Update Placeholders
             document.querySelectorAll('[data-placeholder]').forEach(el => {
                 const key = el.getAttribute('data-placeholder');
                 if (t[key]) el.placeholder = t[key];
             });
 
-            // Handle RTL
             if (lang === 'ur') {
                 document.body.classList.add('rtl-mode');
-                document.body.style.direction = 'rtl';
             } else {
                 document.body.classList.remove('rtl-mode');
-                document.body.style.direction = 'ltr';
             }
         }
+
+        // Attach event listener for Urdu typing on existing and future inputs
+        document.addEventListener('keypress', (e) => {
+            if (e.target.classList.contains('urdu-input') || e.target.classList.contains('row-desc')) {
+                enableUrduTyping(e);
+            }
+        });
 
         window.onload = async () => {
             applyFormLanguage();
@@ -158,19 +188,8 @@
                     option.value = c.name;
                     dataList.appendChild(option);
                 });
-
-            } catch (e) { 
-                console.error("Initialization error:", e);
-                document.getElementById("display-inv-id").innerText = "INV-1001"; 
-            }
+            } catch (e) { console.error(e); }
         };
-
-        function autoFillClient(val) {
-            const found = clientsArray.find(c => c.name === val);
-            if (found) {
-                document.getElementById("client-phone").value = found.phone || "";
-            }
-        }
 
         function addNewRow() {
             const tbody = document.getElementById("item-body");
@@ -185,16 +204,16 @@
             tbody.appendChild(tr);
         }
 
-        function checkAutoRow(input) {
-            const rows = document.querySelectorAll("#item-body tr");
-            if (input.parentElement.parentElement === rows[rows.length - 1] && input.value > 0) addNewRow();
-        }
-
         function removeRow(btn) {
             if (document.querySelectorAll("#item-body tr").length > 1) {
                 btn.parentElement.parentElement.remove();
                 calculate();
             }
+        }
+
+        function checkAutoRow(input) {
+            const rows = document.querySelectorAll("#item-body tr");
+            if (input.parentElement.parentElement === rows[rows.length - 1] && input.value > 0) addNewRow();
         }
 
         function calculate() {
@@ -213,9 +232,7 @@
         async function submitInvoice() {
             const client = document.getElementById("client-name").value;
             if (!client) return alert("Please enter Client Name");
-
             const btn = document.querySelector(".btn-gen");
-            const originalText = btn.innerText;
             btn.disabled = true; btn.innerText = "...";
 
             const items = [];
@@ -252,7 +269,7 @@
                 window.location.reload(); 
             } catch (err) {
                 alert("Error saving invoice.");
-                btn.disabled = false; btn.innerText = originalText;
+                btn.disabled = false; btn.innerText = "Generate & Save Invoice";
             }
         }
     </script>
