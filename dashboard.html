@@ -22,7 +22,7 @@
         #main-dashboard { display: grid; grid-template-columns: 250px 1fr; grid-template-rows: 60px 1fr 40px; height: 100vh; }
         header { grid-column: 1 / -1; background: var(--primary); color: white; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; }
         
-        aside { background: var(--secondary); color: white; padding: 20px 0; display: flex; flex-direction: column; }
+        aside { background: var(--secondary); color: white; padding: 20px 0; display: flex; flex-direction: column; transition: 0.3s; }
         .logo-container { width: 80px; height: 80px; border-radius: 50%; border: 3px solid var(--accent); overflow: hidden; margin: 0 auto 20px auto; background: white; display: flex; justify-content: center; align-items: center; }
         .logo-container img { width: 100%; height: 100%; object-fit: cover; }
 
@@ -70,62 +70,63 @@
 
 <div id="pwd-modal" class="modal-overlay hidden">
     <div class="modal-card">
-        <h3>Change Password</h3>
+        <h3 data-key="changePass">Change Password</h3>
         <input type="password" id="oldPass" placeholder="Old Password">
         <input type="password" id="newPass" placeholder="New Password">
-        <button id="savePassBtn" class="btn-primary" onclick="savePassword()">Update</button>
-        <button class="btn-secondary" onclick="closePwdModal()">Cancel</button>
+        <button id="savePassBtn" class="btn-primary" onclick="savePassword()" data-key="updateBtn">Update</button>
+        <button class="btn-secondary" onclick="closePwdModal()" data-key="cancelBtn">Cancel</button>
         <p id="pwd-msg" style="font-size: 12px; margin-top: 10px;"></p>
     </div>
 </div>
 
 <div id="main-dashboard" class="hidden">
-   <header>
-    <div style="font-size: 20px; font-weight: bold;">eInvoicer</div>
-    <div class="lang-menu">
-        <select id="lang-switch" onchange="applyLanguage(this.value)" style="background: transparent; color: white; border: 1px solid #555; padding: 5px; cursor: pointer;">
-            <option value="en" style="color: black;">ENG</option>
-            <option value="ur" style="color: black;">اردو</option>
-        </select>
-    </div>
-    <div class="user-info">
-        <span class="user-badge">
-            <span data-key="idLabel">ID</span>: <span id="display-userid">--</span>
-        </span>
-        <span style="margin-left: 10px;">
-            <span data-key="welcome">Welcome</span>, <span id="display-username">User</span>
-        </span>
-        <button onclick="logout()" data-key="logout" style="width: auto; padding: 5px 10px; background: var(--danger); color:white; border:none; margin-left: 15px; border-radius: 5px; cursor:pointer;">Logout</button>
-    </div>
-</header>
+    <header>
+        <div style="font-size: 20px; font-weight: bold;">eInvoicer</div>
+        <div class="lang-menu">
+            <select id="lang-switch" onchange="applyLanguage(this.value)" style="background: transparent; color: white; border: 1px solid #555; padding: 5px; cursor: pointer;">
+                <option value="en" style="color: black;">ENG</option>
+                <option value="ur" style="color: black;">اردو</option>
+            </select>
+        </div>
+        <div class="user-info">
+            <span class="user-badge">
+                <span data-key="idLabel">ID</span>: <span id="display-userid">--</span>
+            </span>
+            <span style="margin-left: 10px;">
+                <span data-key="welcome">Welcome</span>, <span id="display-username">User</span>
+            </span>
+            <button onclick="logout()" data-key="logout" style="width: auto; padding: 5px 10px; background: var(--danger); color:white; border:none; margin-left: 15px; border-radius: 5px; cursor:pointer;">Logout</button>
+        </div>
+    </header>
+
     <aside>
         <div id="logo-wrapper" class="logo-container hidden">
             <img id="user-logo" src="" alt="Business Logo">
-      </div>
+        </div>
 
-    <ul>
-    <li onclick="goToDashboard()">🏠 Dashboard</li>
-     <li onclick="showSection('create')">➕ Create Invoice</li>
-     <li onclick="showSection('view-all')">📄 View All Invoices</li>
-     <li onclick="showSection('update')">✏️ Edit or Delete</li>
-     <li onclick="showSection('report')">📊 Reports</li>
-     
-     <li onclick="toggleMenu('clients-menu')">👥 Clients ▾</li>
-     <ul id="clients-menu" class="submenu">
-         <li onclick="showSection('add-client')">👤 Add Client</li>
-         <li onclick="showSection('view-clients')">📋 Client List</li>
-     </ul>
+        <ul>
+            <li onclick="goToDashboard()" data-key="navHome">🏠 Dashboard</li>
+            <li onclick="showSection('create')" data-key="navCreate">➕ Create Invoice</li>
+            <li onclick="showSection('view-all')" data-key="navView">📄 View All Invoices</li>
+            <li onclick="showSection('update')" data-key="navEdit">✏️ Edit or Delete</li>
+            <li onclick="showSection('report')" data-key="navReports">📊 Reports</li>
+            
+            <li onclick="toggleMenu('clients-menu')" data-key="navClients">👥 Clients ▾</li>
+            <ul id="clients-menu" class="submenu">
+                <li onclick="showSection('add-client')" data-key="navAddClient">👤 Add Client</li>
+                <li onclick="showSection('view-clients')" data-key="navClientList">📋 Client List</li>
+            </ul>
 
-     <li onclick="toggleMenu('settings-menu')">⚙️ Settings ▾</li>
-     <ul id="settings-menu" class="submenu">
-         <li onclick="showSection('biz-settings')">🏢 Business Setting</li>
-         <li onclick="showSection('tax-settings')">💰 Tax Setting</li>
-         <li onclick="showSection('currency-settings')">💱 Set Currency</li>
-     </ul>
-</ul>
+            <li onclick="toggleMenu('settings-menu')" data-key="navSettings">⚙️ Settings ▾</li>
+            <ul id="settings-menu" class="submenu">
+                <li onclick="showSection('biz-settings')" data-key="navBizSet">🏢 Business Setting</li>
+                <li onclick="showSection('tax-settings')" data-key="navTaxSet">💰 Tax Setting</li>
+                <li onclick="showSection('currency-settings')" data-key="navCurrSet">💱 Set Currency</li>
+            </ul>
+        </ul>
 
         <div class="sidebar-footer">
-            <button class="btn-link" onclick="openPwdModal()">Change Password</button>
+            <button class="btn-link" onclick="openPwdModal()" data-key="navChangePwd">Change Password</button>
         </div>
     </aside>
 
@@ -133,24 +134,24 @@
         <div id="welcome-msg">
             <div class="biz-panel">
                 <h1 id="display-bizname">BUSINESS NAME</h1>
-                <p>Business Management Overview</p>
+                <p data-key="overview">Business Management Overview</p>
             </div>
 
             <div class="stats-grid">
                 <div class="stat-card card-inv">
-                    <h4>Total Invoices</h4>
+                    <h4 data-key="statInv">Total Invoices</h4>
                     <span class="value" id="stat-inv">0</span>
                 </div>
                 <div class="stat-card card-cli">
-                    <h4>Total Clients</h4>
+                    <h4 data-key="statCli">Total Clients</h4>
                     <span class="value" id="stat-cli">0</span>
                 </div>
                 <div class="stat-card card-amt">
-                    <h4>Total Amount</h4>
+                    <h4 data-key="statAmt">Total Amount</h4>
                     <span class="value" id="stat-amt">0.00</span>
                 </div>
                 <div class="stat-card card-tax">
-                    <h4>Total Tax</h4>
+                    <h4 data-key="statTax">Total Tax</h4>
                     <span class="value" id="stat-tax">0.00</span>
                 </div>
             </div>
@@ -169,6 +170,58 @@
 
     document.getElementById('year').innerText = new Date().getFullYear();
 
+    // LANGUAGE DICTIONARY
+    const dashboardTranslations = {
+        en: {
+            idLabel: "ID", welcome: "Welcome", logout: "Logout",
+            navHome: "🏠 Dashboard", navCreate: "➕ Create Invoice",
+            navView: "📄 View All Invoices", navEdit: "✏️ Edit or Delete",
+            navReports: "📊 Reports", navClients: "👥 Clients ▾",
+            navAddClient: "👤 Add Client", navClientList: "📋 Client List",
+            navSettings: "⚙️ Settings ▾", navBizSet: "🏢 Business Setting",
+            navTaxSet: "💰 Tax Setting", navCurrSet: "💱 Set Currency",
+            navChangePwd: "Change Password", overview: "Business Management Overview",
+            statInv: "Total Invoices", statCli: "Total Clients",
+            statAmt: "Total Amount", statTax: "Total Tax",
+            changePass: "Change Password", updateBtn: "Update", cancelBtn: "Cancel"
+        },
+        ur: {
+            idLabel: "شناخت", welcome: "خوش آمدید", logout: "لاگ آؤٹ",
+            navHome: "🏠 ڈیش بورڈ", navCreate: "➕ انوائس بنائیں",
+            navView: "📄 تمام انوائسز", navEdit: "✏️ ترمیم یا حذف",
+            navReports: "📊 رپورٹس", navClients: "👥 کلائنٹس ▾",
+            navAddClient: "👤 کلائنٹ شامل کریں", navClientList: "📋 کلائنٹ کی فہرست",
+            navSettings: "⚙️ سیٹنگز ▾", navBizSet: "🏢 بزنس سیٹنگ",
+            navTaxSet: "💰 ٹیکس سیٹنگ", navCurrSet: "💱 کرنسی سیٹ کریں",
+            navChangePwd: "پاس ورڈ تبدیل کریں", overview: "کاروباری نظم و ضبط کا جائزہ",
+            statInv: "کل انوائسز", statCli: "کل کلائنٹس",
+            statAmt: "کل رقم", statTax: "کل ٹیکس",
+            changePass: "پاس ورڈ تبدیل کریں", updateBtn: "اپ ڈیٹ", cancelBtn: "کینسل"
+        }
+    };
+
+    function applyLanguage(lang) {
+        const t = dashboardTranslations[lang];
+        if (!t) return;
+
+        document.querySelectorAll('[data-key]').forEach(el => {
+            const key = el.getAttribute('data-key');
+            if (t[key]) el.innerText = t[key];
+        });
+
+        if (lang === 'ur') {
+            document.body.style.direction = 'rtl';
+            document.body.style.fontFamily = "'Tahoma', sans-serif";
+            document.querySelector('aside').style.textAlign = 'right';
+        } else {
+            document.body.style.direction = 'ltr';
+            document.body.style.fontFamily = "'Segoe UI', sans-serif";
+            document.querySelector('aside').style.textAlign = 'left';
+        }
+        localStorage.setItem("dashboardLang", lang);
+    }
+
+    // CORE LOGIC FUNCTIONS (UNCHANGED)
     function toggleMenu(id) {
         const targetMenu = document.getElementById(id);
         const isOpen = targetMenu.classList.contains('open');
@@ -188,7 +241,6 @@
         const pass = document.getElementById("l_pass").value;
         const msg = document.getElementById("msg");
         msg.innerText = "Checking...";
-
         try {
             const response = await fetch(`${API_URL}?action=login&email=${encodeURIComponent(email)}&password=${encodeURIComponent(pass)}`);
             const result = await response.json();
@@ -202,127 +254,66 @@
     function setupDashboard(user) {
         document.getElementById("auth-container").classList.add("hidden");
         document.getElementById("main-dashboard").classList.remove("hidden");
-        document.getElementById("display-userid").innerText = "ID: " + user.id;
-        document.getElementById("display-username").innerText = "Welcome, " + user.name;
+        document.getElementById("display-userid").innerText = user.id;
+        document.getElementById("display-username").innerText = user.name;
         document.getElementById("display-bizname").innerText = user.business;
-
         if(user.logo) {
             document.getElementById("user-logo").src = user.logo;
             document.getElementById("logo-wrapper").classList.remove("hidden");
         }
-        loadDashboardStats(user.id);
+        loadDashboardStats();
     }
 
-   // UPDATED FUNCTION TO FETCH STATISTICS FOR MULTI-TENANT MODEL
     async function loadDashboardStats() {
-        // 1. Get user data from localStorage
         const user = JSON.parse(localStorage.getItem("user"));
         if (!user || !user.sheetId) return;
-
         try {
-            // 2. Pass sheetId in the URL parameters
             const [invRes, cliRes] = await Promise.all([
                 fetch(`${API_URL}?action=getInvoices&sheetId=${user.sheetId}`),
                 fetch(`${API_URL}?action=getClients&sheetId=${user.sheetId}`)
             ]);
-            
             const invoices = await invRes.json();
             const clients = await cliRes.json();
-
-            // 3. Robust Array check to prevent .forEach errors
-            if (!Array.isArray(invoices)) {
-                console.error("Invoices data is not an array:", invoices);
-                return;
-            }
-
-            let totalAmt = 0;
-            let totalTax = 0;
-
+            if (!Array.isArray(invoices)) return;
+            let totalAmt = 0, totalTax = 0;
             invoices.forEach(inv => {
-                // Ensure we use the correct keys returned by your GAS getInvoices mapping
                 totalAmt += parseFloat(inv.total) || 0;
                 totalTax += parseFloat(inv.taxAmount) || 0;
             });
-
-            // 4. Update the UI cards
             document.getElementById("stat-inv").innerText = invoices.length;
             document.getElementById("stat-cli").innerText = Array.isArray(clients) ? clients.length : 0;
             document.getElementById("stat-amt").innerText = totalAmt.toFixed(2);
             document.getElementById("stat-tax").innerText = totalTax.toFixed(2);
-            
-        } catch (e) { 
-            console.error("Dashboard Stats Error:", e); 
-        }
-    }
-    
-   async function savePassword() {
-    const oldPass = document.getElementById("oldPass").value;
-    const newPass = document.getElementById("newPass").value;
-    const user = JSON.parse(localStorage.getItem("user"));
-    const saveBtn = document.getElementById("savePassBtn");
-    const pwdMsg = document.getElementById("pwd-msg");
-
-    if (!oldPass || !newPass) {
-        alert("Please fill in both fields.");
-        return;
+        } catch (e) { console.error("Stats Error:", e); }
     }
 
-    saveBtn.innerText = "⏳ Updating...";
-    saveBtn.disabled = true;
-
-    try {
-        // We use text/plain to avoid CORS issues with GAS
-        const response = await fetch(API_URL, {
-            method: "POST",
-            body: JSON.stringify({ 
-                action: "changePassword", 
-                userId: user.id, 
-                oldPass: oldPass, 
-                newPass: newPass 
-            })
-        });
-
-        // Since fetch to GAS can return an opaque response in some modes,
-        // we handle the success path clearly.
-        alert("✅ Password updated successfully! Please login again.");
-        logout(); 
-
-    } catch (err) {
-        console.error(err);
-        // Fallback for GAS redirects
-        alert("✅ Password update request sent. Please re-login.");
-        logout();
+    async function savePassword() {
+        const oldPass = document.getElementById("oldPass").value;
+        const newPass = document.getElementById("newPass").value;
+        const user = JSON.parse(localStorage.getItem("user"));
+        const saveBtn = document.getElementById("savePassBtn");
+        if (!oldPass || !newPass) { alert("Please fill fields."); return; }
+        saveBtn.innerText = "⏳ Updating...";
+        saveBtn.disabled = true;
+        try {
+            await fetch(API_URL, { method: "POST", body: JSON.stringify({ action: "changePassword", userId: user.id, oldPass: oldPass, newPass: newPass }) });
+            alert("✅ Success! Please login again.");
+            logout();
+        } catch (err) { alert("✅ Update request sent."); logout(); }
     }
-}
+
     function goToDashboard() {
-    // Hide the iframe container
-    document.getElementById('module-container').classList.add('hidden');
-    // Clear the frame src so it doesn't stay loaded in the background
-    document.getElementById('content-frame').src = "";
-    // Show the statistics and welcome message
-    document.getElementById('welcome-msg').classList.remove('hidden');
-    
-    // Refresh stats to ensure they are up to date
-    const user = JSON.parse(localStorage.getItem("user"));
-    if (user) loadDashboardStats(user.id);
-}
+        document.getElementById('module-container').classList.add('hidden');
+        document.getElementById('content-frame').src = "";
+        document.getElementById('welcome-msg').classList.remove('hidden');
+        loadDashboardStats();
+    }
+
     function showSection(id) {
         document.getElementById('welcome-msg').classList.add('hidden');
         document.getElementById('module-container').classList.remove('hidden');
-        const frame = document.getElementById('content-frame');
-        
-        const routes = {
-            'create': 'invoice-form.html',
-            'view-all': 'view-all.html',
-            'update': 'update.html',
-            'report': 'reports.html',
-            'add-client': 'add-client.html',
-            'view-clients': 'view-clients.html',
-            'biz-settings': 'business-settings.html',
-            'tax-settings': 'tax-settings.html',
-            'currency-settings': 'currency-settings.html'
-        };
-        frame.src = routes[id] || "";
+        const routes = { 'create': 'invoice-form.html', 'view-all': 'view-all.html', 'update': 'update.html', 'report': 'reports.html', 'add-client': 'add-client.html', 'view-clients': 'view-clients.html', 'biz-settings': 'business-settings.html', 'tax-settings': 'tax-settings.html', 'currency-settings': 'currency-settings.html' };
+        document.getElementById('content-frame').src = routes[id] || "";
     }
 
     function logout() { localStorage.removeItem("user"); location.reload(); }
@@ -330,73 +321,11 @@
     window.onload = () => {
         const savedUser = localStorage.getItem("user");
         if (savedUser) setupDashboard(JSON.parse(savedUser));
-    };
-
-    const dashboardTranslations = {
-    en: {
-        idLabel: "ID",
-        welcome: "Welcome",
-        logout: "Logout",
-        navHome: "Dashboard",
-        navInvoices: "Invoices",
-        navReports: "Reports",
-        dir: "ltr"
-    },
-    ur: {
-        idLabel: "شناخت",
-        welcome: "خوش آمدید",
-        logout: "لاگ آؤٹ",
-        navHome: "ڈیش بورڈ",
-        navInvoices: "انوائسز",
-        navReports: "رپورٹس",
-        dir: "rtl"
-    }
-};
-
-function applyLanguage(lang) {
-    const t = dashboardTranslations[lang];
-    if (!t) return;
-
-    // 1. SAFE UPDATE: Loop through all elements with a data-key
-    document.querySelectorAll('[data-key]').forEach(el => {
-        const key = el.getAttribute('data-key');
-        if (t[key]) {
-            el.innerText = t[key];
-        }
-    });
-
-    // 2. Handle Right-to-Left (RTL) for Urdu
-    if (lang === 'ur') {
-        document.body.style.direction = 'rtl';
-        document.body.style.fontFamily = "'Tahoma', sans-serif";
-        // Flip sidebar text alignment
-        document.querySelector('aside').style.textAlign = 'right';
-    } else {
-        document.body.style.direction = 'ltr';
-        document.body.style.fontFamily = "'Segoe UI', sans-serif";
-        document.querySelector('aside').style.textAlign = 'left';
-    }
-
-    // 3. Save choice
-    localStorage.setItem("dashboardLang", lang);
-}
-
-// Combine your logic into one window.onload
-window.onload = () => {
-    // Check for existing session
-    const savedUser = localStorage.getItem("user");
-    if (savedUser) {
-        setupDashboard(JSON.parse(savedUser));
-    }
-
-    // Load Language
-    const savedLang = localStorage.getItem("dashboardLang") || "en";
-    const langSwitch = document.getElementById('lang-switch');
-    if (langSwitch) {
-        langSwitch.value = savedLang;
+        
+        const savedLang = localStorage.getItem("dashboardLang") || "en";
+        document.getElementById('lang-switch').value = savedLang;
         applyLanguage(savedLang);
-    }
-};
+    };
 </script>
 </body>
 </html>
