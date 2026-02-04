@@ -82,6 +82,12 @@
 <div id="main-dashboard" class="hidden">
     <header>
         <div style="font-size: 20px; font-weight: bold;">eInvoicer</div>
+        <div class="lang-menu">
+        <select id="lang-switch" onchange="applyLanguage(this.value)" style="background: transparent; color: white; border: 1px solid #555; padding: 5px; cursor: pointer;">
+            <option value="en" style="color: black;">ENG</option>
+            <option value="ur" style="color: black;">اردو</option>
+        </select>
+    </div>
         <div class="user-info">
             <span class="user-badge" id="display-userid">ID: --</span>
             <span id="display-username" style="margin-left: 10px;">Welcome, User</span>
@@ -322,6 +328,57 @@
         const savedUser = localStorage.getItem("user");
         if (savedUser) setupDashboard(JSON.parse(savedUser));
     };
+
+    const dashboardTranslations = {
+    en: {
+        idLabel: "ID",
+        welcome: "Welcome",
+        logout: "Logout",
+        navHome: "Dashboard",
+        navInvoices: "Invoices",
+        navReports: "Reports",
+        dir: "ltr"
+    },
+    ur: {
+        idLabel: "شناخت",
+        welcome: "خوش آمدید",
+        logout: "لاگ آؤٹ",
+        navHome: "ڈیش بورڈ",
+        navInvoices: "انوائسز",
+        navReports: "رپورٹس",
+        dir: "rtl"
+    }
+};
+
+function applyLanguage(lang) {
+    const t = dashboardTranslations[lang];
+    
+    // 1. Update text by Data Keys
+    document.querySelector('[data-key="id-label"]').innerText = t.idLabel;
+    document.querySelector('[data-key="welcome"]').innerText = t.welcome;
+    document.querySelector('[data-key="logout"]').innerText = t.logout;
+    
+    // 2. Handle Right-to-Left (RTL) for Urdu
+    if (lang === 'ur') {
+        document.body.style.direction = 'rtl';
+        document.body.style.fontFamily = "'Tahoma', sans-serif";
+    } else {
+        document.body.style.direction = 'ltr';
+        document.body.style.fontFamily = "'Segoe UI', sans-serif";
+    }
+
+    // 3. Save choice so it stays when user refreshes
+    localStorage.setItem("dashboardLang", lang);
+}
+
+// 4. Run on page load
+window.onload = () => {
+    const savedLang = localStorage.getItem("dashboardLang") || "en";
+    document.getElementById('lang-switch').value = savedLang;
+    applyLanguage(savedLang);
+    
+    // Your existing login/user check logic here...
+};
 </script>
 </body>
 </html>
