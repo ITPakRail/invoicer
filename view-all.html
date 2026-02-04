@@ -21,6 +21,12 @@
         th { background: #2c3e50; color: white; padding: 15px; text-align: left; }
         td { padding: 12px; border-bottom: 1px solid #eee; }
         
+        /* Status Badges */
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+        .status-paid { background: #d4edda; color: #155724; }
+        .status-partial { background: #fff3cd; color: #856404; }
+        .status-unpaid { background: #f8d7da; color: #721c24; }
+
         .btn { padding: 8px 14px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-right: 4px; font-size: 12px; transition: 0.3s; }
         .btn-print { background: #3498db; color: white; }
         .btn-wa { background: #25D366; color: white; }
@@ -47,6 +53,7 @@
                 <th data-key="thInvId">Invoice ID</th>
                 <th data-key="thClient">Client Name</th>
                 <th data-key="thTotal">Grand Total</th>
+                <th data-key="thStatus">Status</th>
                 <th data-key="thActions">Actions</th>
             </tr>
         </thead>
@@ -63,6 +70,7 @@
                 searchPlace: "🔍 Search by Client Name or ID...", btnRefresh: "🔄 Refresh",
                 fetchMsg: "Fetching your records...", thDate: "Date", thInvId: "Invoice ID",
                 thClient: "Client Name", thTotal: "Grand Total", thActions: "Actions",
+                thStatus: "Status", thPaid: "Paid", thBal: "Balance",
                 btnPrint: "PDF / Print", btnWA: "WhatsApp", btnMail: "Email", noPhone: "No Phone",
                 thDesc: "Description", thQty: "Qty", thPrice: "Price"
             },
@@ -70,6 +78,7 @@
                 searchPlace: "🔍 کلائنٹ کا نام یا آئی ڈی تلاش کریں...", btnRefresh: "🔄 ریفریش",
                 fetchMsg: "ریکارڈ حاصل کیا جا رہا ہے...", thDate: "تاریخ", thInvId: "انوائس نمبر",
                 thClient: "کلائنٹ کا نام", thTotal: "کل رقم", thActions: "ایکشنز",
+                thStatus: "حالت", thPaid: "وصول شدہ", thBal: "بقایا",
                 btnPrint: "پی ڈی ایف / پرنٹ", btnWA: "واٹس ایپ", btnMail: "ای میل", noPhone: "فون نمبر نہیں ہے",
                 thDesc: "تفصیل", thQty: "تعداد", thPrice: "قیمت"
             }
@@ -104,7 +113,9 @@
                     invoiceId: row.invoiceId, clientName: row.clientName,
                     clientPhone: row.clientPhone || "", date: row.date,
                     subtotal: row.subtotal || 0, taxAmount: row.taxAmount || 0,
-                    total: row.total || 0, items: row.items_json || "[]"
+                    total: row.total || 0, items: row.items_json || "[]",
+                    paidAmount: row.paidAmount || 0, balanceAmount: row.balanceAmount || 0,
+                    status: row.status || "Paid"
                 }));
 
                 document.getElementById("loader").classList.add("hidden");
@@ -112,12 +123,17 @@
 
                 const lang = localStorage.getItem("dashboardLang") || "en";
                 cachedInvoices.forEach(inv => {
+                    const statusClass = `status-${inv.status.toLowerCase()}`;
                     const tr = document.createElement("tr");
                     tr.innerHTML = `
                         <td>${inv.date}</td>
                         <td><strong>${inv.invoiceId}</strong></td>
                         <td>${inv.clientName}<br><small>${inv.clientPhone || i18n[lang].noPhone}</small></td>
-                        <td><strong>${parseFloat(inv.total).toFixed(2)}</strong></td>
+                        <td>
+                            <strong>${parseFloat(inv.total).toFixed(2)}</strong><br>
+                            <small>${i18n[lang].thBal}: ${parseFloat(inv.balanceAmount).toFixed(2)}</small>
+                        </td>
+                        <td><span class="badge ${statusClass}">${inv.status}</span></td>
                         <td>
                             <button class="btn btn-print" onclick="generatePDF('${inv.invoiceId}', true)">${i18n[lang].btnPrint}</button>
                             <button class="btn btn-wa" onclick="handleShare('${inv.invoiceId}', 'wa')">${i18n[lang].btnWA}</button>
@@ -129,7 +145,6 @@
             } catch (err) { document.getElementById("loader").innerText = "⚠️ Error."; }
         }
 
-        // FIXED: This now collects data and opens the print dialog so users can "Save as PDF" with perfect Urdu
         function generatePDF(id, shouldDownload = true) {
             const inv = cachedInvoices.find(i => i.invoiceId === id);
             if (!inv) return;
@@ -154,13 +169,20 @@
                 th,td{border:1px solid #ddd; padding:10px; text-align:${align}} 
                 th{background:#f4f4f4}
                 .total-area{text-align:${lang === 'ur' ? 'left' : 'right'}; margin-top:20px}
+                .payment-info{margin-top:10px; border-top:1px solid #eee; padding-top:10px}
             </style></head><body>
                 <h2>${user.business}</h2>
                 <p>${t.thInvId}: ${inv.invoiceId} | ${t.thDate}: ${inv.date}</p>
                 <p>${t.thClient}: ${inv.clientName}</p>
                 <table><thead><tr><th>${t.thDesc}</th><th>${t.thQty}</th><th>${t.thPrice}</th><th>${t.thTotal}</th></tr></thead>
                 <tbody>${rows}</tbody></table>
-                <div class="total-area"><h3>${t.thTotal}: ${parseFloat(inv.total).toFixed(2)}</h3></div>
+                <div class="total-area">
+                    <h3>${t.thTotal}: ${parseFloat(inv.total).toFixed(2)}</h3>
+                    <div class="payment-info">
+                        <p>${t.thPaid}: ${parseFloat(inv.paidAmount).toFixed(2)}</p>
+                        <p><strong>${t.thBal}: ${parseFloat(inv.balanceAmount).toFixed(2)}</strong></p>
+                    </div>
+                </div>
                 <script>window.onload=function(){window.print();window.close();}<\/script>
             </body></html>`);
             printWin.document.close();
@@ -170,7 +192,6 @@
             const inv = cachedInvoices.find(i => i.invoiceId === id);
             if (!inv) return;
 
-            // Trigger the Print/Save as PDF dialog first
             generatePDF(id, true);
 
             const lang = localStorage.getItem("dashboardLang") || "en";
@@ -183,14 +204,16 @@
             });
 
             const labels = lang === 'ur' ? 
-                { inv: "انوائس", date: "تاریخ", client: "کلائنٹ", items: "اشیاء", total: "کل رقم" } : 
-                { inv: "INVOICE", date: "Date", client: "Client", items: "Items", total: "Total" };
+                { inv: "انوائس", date: "تاریخ", client: "کلائنٹ", items: "اشیاء", total: "کل رقم", paid: "وصول شدہ", bal: "بقایا", status: "حالت" } : 
+                { inv: "INVOICE", date: "Date", client: "Client", items: "Items", total: "Total", paid: "Paid", bal: "Balance", status: "Status" };
 
             const fullMessage = `📄 *${labels.inv}: ${inv.invoiceId}*\n` +
                                 `📅 ${labels.date}: ${inv.date}\n` +
                                 `👤 ${labels.client}: ${inv.clientName}\n\n` +
                                 `*${labels.items}:*\n${itemText}\n` +
-                                `💰 *${labels.total}: ${parseFloat(inv.total).toFixed(2)}*\n\n` +
+                                `💰 *${labels.total}: ${parseFloat(inv.total).toFixed(2)}*\n` +
+                                `📥 ${labels.paid}: ${parseFloat(inv.paidAmount).toFixed(2)}\n` +
+                                `🚩 *${labels.bal}: ${parseFloat(inv.balanceAmount).toFixed(2)} (${inv.status})*\n\n` +
                                 `Regards, *${user.business}*`;
 
             if (platform === 'wa') {
