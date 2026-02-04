@@ -95,7 +95,7 @@
             document.body.classList.toggle('rtl-mode', lang === 'ur');
         }
 
-        async function loadData() {
+       async function loadData() {
             if (!user || !user.sheetId) return;
             const tbody = document.getElementById("tableBody");
             tbody.innerHTML = "";
@@ -106,7 +106,7 @@
                 const response = await fetch(`${DATA_API_URL}?action=getInvoices&userId=${user.id}&sheetId=${user.sheetId}`);
                 const data = await response.json();
                 
-                // MAPPED TO YOUR EXACT SHEET COLUMNS:
+                // MAPPING DATA FROM SCRIPT TO HTML:
                 cachedInvoices = data.map(row => ({
                     invoiceId: row.Invoice_ID, 
                     clientName: row.Client_Name,
@@ -124,7 +124,10 @@
 
                 const lang = localStorage.getItem("dashboardLang") || "en";
                 cachedInvoices.forEach(inv => {
-                    const statusClass = `status-${inv.status.toLowerCase()}`;
+                    // Normalize status for CSS class (handle empty or undefined)
+                    const currentStatus = inv.status ? inv.status.toLowerCase() : "paid";
+                    const statusClass = `status-${currentStatus}`;
+                    
                     const tr = document.createElement("tr");
                     tr.innerHTML = `
                         <td>${inv.date}</td>
@@ -142,9 +145,11 @@
                     `;
                     tbody.appendChild(tr);
                 });
-            } catch (err) { document.getElementById("loader").innerText = "⚠️ Error loading data."; }
+            } catch (err) { 
+                console.error(err);
+                document.getElementById("loader").innerText = "⚠️ Error loading data."; 
+            }
         }
-
         function generatePDF(id) {
             const inv = cachedInvoices.find(i => i.invoiceId === id);
             if (!inv) return;
