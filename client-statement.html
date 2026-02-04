@@ -113,7 +113,7 @@
         } catch(e) { console.error("Client Load Error"); }
     }
 
-    async function loadLedger() {
+   async function loadLedger() {
         const clientName = document.getElementById("clientSelect").value;
         const tbody = document.getElementById("ledgerBody");
         if(!clientName) return;
@@ -121,37 +121,33 @@
         tbody.innerHTML = "<tr><td colspan='5' style='text-align:center;'>Loading...</td></tr>";
 
         try {
-            // Action "getLedger" should return all rows from the user's "ledger" sheet
-            const response = await fetch(`${API_URL}?action=getInvoices&sheetId=${user.sheetId}`); // Reusing your getter logic
-            const rawData = await response.json();
+            const response = await fetch(`${API_URL}?action=getLedger&sheetId=${user.sheetId}`);
+            const allLedgerData = await response.json();
             
-            // For now, filtering from main data (or update your GS to have getLedger)
-            const filtered = rawData.filter(row => row.Client_Name === clientName);
+            // Filter by selected client
+            const filtered = allLedgerData.filter(row => row.Client_Name === clientName);
             
             tbody.innerHTML = "";
-            let runningBalance = 0;
-
             filtered.forEach(row => {
-                const total = parseFloat(row.Total_Amount) || 0;
-                const paid = parseFloat(row.Paid_Amount) || 0;
-                const balance = parseFloat(row.Balance_Amount) || 0;
-
-                // Creating two entries for the ledger to show the history: 1 for Bill, 1 for Payment
-                // Note: Once your Ledger sheet is populated via record-payment, 
-                // you would pull directly from the "ledger" sheet instead.
-
                 const tr = document.createElement("tr");
+                // Format date if it comes back as ISO string
+                const dateStr = row.Date ? new Date(row.Date).toLocaleDateString() : '---';
+                
                 tr.innerHTML = `
-                    <td>${row.Date || '---'}</td>
-                    <td>Invoice #${row.Invoice_ID}</td>
-                    <td class="dr-text">${total.toFixed(2)}</td>
-                    <td class="cr-text">${paid.toFixed(2)}</td>
-                    <td class="bal-text">${balance.toFixed(2)}</td>
+                    <td>${dateStr}</td>
+                    <td>${row.Description} (Inv: ${row.Invoice_ID})</td>
+                    <td class="dr-text">${parseFloat(row.Debit_Amount || 0).toFixed(2)}</td>
+                    <td class="cr-text">${parseFloat(row.Credit_Amount || 0).toFixed(2)}</td>
+                    <td class="bal-text">${parseFloat(row.Balance || 0).toFixed(2)}</td>
                 `;
                 tbody.appendChild(tr);
             });
+            
+            if(filtered.length === 0) {
+                tbody.innerHTML = "<tr><td colspan='5' style='text-align:center;'>No records found for this client.</td></tr>";
+            }
         } catch (e) {
-            tbody.innerHTML = "<tr><td colspan='5'>Error loading data.</td></tr>";
+            tbody.innerHTML = "<tr><td colspan='5'>Error loading ledger.</td></tr>";
         }
     }
 </script>
