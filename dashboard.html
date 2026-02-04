@@ -6,23 +6,32 @@
     <title>eInvoicer - MultiVendor Dashboard</title>
     <style>
         :root { --primary: #2c3e50; --secondary: #34495e; --accent: #3498db; --text-light: #ecf0f1; --danger: #e74c3c; --success: #27ae60; --warning: #f39c12; }
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f4f7f6; height: 100vh; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f4f7f6; height: 100vh; overflow: hidden; }
         .hidden { display: none !important; }
 
         /* AUTH & MODAL STYLES */
         #auth-container, .modal-overlay { display: flex; justify-content: center; align-items: center; height: 100vh; }
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; background: rgba(0,0,0,0.5); z-index: 2000; }
         .auth-card, .modal-card { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 350px; text-align: center; }
         
         input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
         .btn-primary { width: 100%; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 10px; }
         .btn-secondary { width: 100%; padding: 12px; background: #95a5a6; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 5px; }
 
-        /* DASHBOARD STYLES */
-        #main-dashboard { display: grid; grid-template-columns: 250px 1fr; grid-template-rows: 60px 1fr 40px; height: 100vh; }
-        header { grid-column: 1 / -1; background: var(--primary); color: white; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; }
+        /* DASHBOARD LAYOUT */
+        #main-dashboard { display: grid; grid-template-columns: 250px 1fr; grid-template-rows: 60px 1fr 40px; height: 100vh; transition: 0.3s; }
         
-        aside { background: var(--secondary); color: white; padding: 20px 0; display: flex; flex-direction: column; transition: 0.3s; }
+        /* Layout when sidebar is toggled off */
+        #main-dashboard.sidebar-closed { grid-template-columns: 0px 1fr; }
+
+        header { grid-column: 1 / -1; background: var(--primary); color: white; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; z-index: 1001; }
+        
+        /* TOGGLE BUTTON */
+        .menu-toggle { font-size: 24px; cursor: pointer; margin-right: 15px; color: white; background: none; border: none; }
+
+        aside { background: var(--secondary); color: white; padding: 20px 0; display: flex; flex-direction: column; transition: 0.3s; overflow-y: auto; z-index: 1000; }
+        #main-dashboard.sidebar-closed aside { transform: translateX(-250px); }
+
         .logo-container { width: 80px; height: 80px; border-radius: 50%; border: 3px solid var(--accent); overflow: hidden; margin: 0 auto 20px auto; background: white; display: flex; justify-content: center; align-items: center; }
         .logo-container img { width: 100%; height: 100%; object-fit: cover; }
 
@@ -38,22 +47,27 @@
         .sidebar-footer { margin-top: auto; padding: 10px; }
         .btn-link { color: #bdc3c7; background: none; border: none; cursor: pointer; font-size: 13px; text-decoration: underline; }
 
-        main { padding: 30px; overflow-y: auto; }
+        main { padding: 20px; overflow-y: auto; }
         footer { grid-column: 1 / -1; background: #ddd; text-align: center; line-height: 40px; font-size: 12px; color: #666; }
-        .user-badge { font-size: 13px; background: #1abc9c; padding: 5px 10px; border-radius: 20px; }
+        .user-badge { font-size: 12px; background: #1abc9c; padding: 5px 10px; border-radius: 20px; }
 
-        /* NEW SCORECARD STYLES */
-        .biz-panel { background: var(--primary); color: white; padding: 40px; border-radius: 10px; text-align: center; margin-bottom: 30px; }
-        .biz-panel h1 { margin: 0; font-size: 2.5em; text-transform: uppercase; letter-spacing: 2px; }
+        /* SCORECARD STYLES */
+        .biz-panel { background: var(--primary); color: white; padding: 30px; border-radius: 10px; text-align: center; margin-bottom: 30px; }
+        .biz-panel h1 { margin: 0; font-size: 1.8em; text-transform: uppercase; }
         
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; }
         .stat-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-top: 4px solid var(--accent); }
         .stat-card h4 { margin: 0; color: #7f8c8d; font-size: 0.85em; text-transform: uppercase; }
-        .stat-card .value { font-size: 1.8em; font-weight: bold; color: var(--primary); margin-top: 10px; display: block; }
-        .card-inv { border-top-color: var(--accent); }
-        .card-cli { border-top-color: #9b59b6; }
-        .card-amt { border-top-color: var(--success); }
-        .card-tax { border-top-color: var(--warning); }
+        .stat-card .value { font-size: 1.5em; font-weight: bold; color: var(--primary); margin-top: 10px; display: block; }
+
+        /* MOBILE RESPONSIVENESS */
+        @media (max-width: 768px) {
+            #main-dashboard { grid-template-columns: 1fr; }
+            aside { position: fixed; top: 60px; left: -250px; height: calc(100vh - 100px); width: 250px; }
+            #main-dashboard.sidebar-open aside { left: 0; }
+            #main-dashboard.sidebar-open main { opacity: 0.3; pointer-events: none; }
+            .user-info span:not(.user-badge) { display: none; } /* Hide "Welcome Name" to save space */
+        }
     </style>
 </head>
 <body>
@@ -81,47 +95,51 @@
 
 <div id="main-dashboard" class="hidden">
     <header>
-        <div style="font-size: 20px; font-weight: bold;">eInvoicer</div>
-        <div class="lang-menu">
-            <select id="lang-switch" onchange="applyLanguage(this.value)" style="background: transparent; color: white; border: 1px solid #555; padding: 5px; cursor: pointer;">
+        <div style="display: flex; align-items: center;">
+            <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+            <div style="font-size: 18px; font-weight: bold;">eInvoicer</div>
+        </div>
+        
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <select id="lang-switch" onchange="applyLanguage(this.value)" style="background: transparent; color: white; border: 1px solid #555; padding: 5px; cursor: pointer; font-size: 12px;">
                 <option value="en" style="color: black;">ENG</option>
                 <option value="ur" style="color: black;">اردو</option>
             </select>
-        </div>
-        <div class="user-info">
-            <span class="user-badge">
-                <span data-key="idLabel">ID</span>: <span id="display-userid">--</span>
-            </span>
-            <span style="margin-left: 10px;">
-                <span data-key="welcome">Welcome</span>, <span id="display-username">User</span>
-            </span>
-            <button onclick="logout()" data-key="logout" style="width: auto; padding: 5px 10px; background: var(--danger); color:white; border:none; margin-left: 15px; border-radius: 5px; cursor:pointer;">Logout</button>
+            <div class="user-info">
+                <span class="user-badge">
+                    <span data-key="idLabel">ID</span>: <span id="display-userid">--</span>
+                </span>
+                <span style="margin-left: 5px;">
+                    <span data-key="welcome">Welcome</span>, <span id="display-username">User</span>
+                </span>
+                <button onclick="logout()" data-key="logout" style="padding: 5px 8px; background: var(--danger); color:white; border:none; margin-left: 10px; border-radius: 5px; cursor:pointer; font-size: 12px;">Logout</button>
+            </div>
         </div>
     </header>
 
-    <aside>
+    <aside id="sidebar">
         <div id="logo-wrapper" class="logo-container hidden">
             <img id="user-logo" src="" alt="Business Logo">
         </div>
 
         <ul>
-            <li onclick="goToDashboard()" data-key="navHome">🏠 Dashboard</li>
-            <li onclick="showSection('create')" data-key="navCreate">➕ Create Invoice</li>
-            <li onclick="showSection('view-all')" data-key="navView">📄 View All Invoices</li>
-            <li onclick="showSection('update')" data-key="navEdit">✏️ Edit or Delete</li>
-            <li onclick="showSection('report')" data-key="navReports">📊 Reports</li>
+            <li onclick="handleNav('home')" data-key="navHome">🏠 Dashboard</li>
+            <li onclick="handleNav('create')" data-key="navCreate">➕ Create Invoice</li>
+            <li onclick="handleNav('view-all')" data-key="navView">📄 View All Invoices</li>
+            <li onclick="handleNav('update')" data-key="navEdit">✏️ Edit or Delete</li>
+            <li onclick="handleNav('report')" data-key="navReports">📊 Reports</li>
             
             <li onclick="toggleMenu('clients-menu')" data-key="navClients">👥 Clients ▾</li>
             <ul id="clients-menu" class="submenu">
-                <li onclick="showSection('add-client')" data-key="navAddClient">👤 Add Client</li>
-                <li onclick="showSection('view-clients')" data-key="navClientList">📋 Client List</li>
+                <li onclick="handleNav('add-client')" data-key="navAddClient">👤 Add Client</li>
+                <li onclick="handleNav('view-clients')" data-key="navClientList">📋 Client List</li>
             </ul>
 
             <li onclick="toggleMenu('settings-menu')" data-key="navSettings">⚙️ Settings ▾</li>
             <ul id="settings-menu" class="submenu">
-                <li onclick="showSection('biz-settings')" data-key="navBizSet">🏢 Business Setting</li>
-                <li onclick="showSection('tax-settings')" data-key="navTaxSet">💰 Tax Setting</li>
-                <li onclick="showSection('currency-settings')" data-key="navCurrSet">💱 Set Currency</li>
+                <li onclick="handleNav('biz-settings')" data-key="navBizSet">🏢 Business Setting</li>
+                <li onclick="handleNav('tax-settings')" data-key="navTaxSet">💰 Tax Setting</li>
+                <li onclick="handleNav('currency-settings')" data-key="navCurrSet">💱 Set Currency</li>
             </ul>
         </ul>
 
@@ -158,17 +176,37 @@
         </div>
         
         <div id="module-container" class="hidden">
-            <iframe id="content-frame" src="" style="width: 100%; height: 85vh; border: none; border-radius: 8px; background: white;"></iframe>
+            <iframe id="content-frame" src="" style="width: 100%; height: 82vh; border: none; border-radius: 8px; background: white;"></iframe>
         </div>
     </main>
 
-    <footer>Copyrights © <span id="year"></span> eInvoicer | All Rights Reserved</footer>
+    <footer>Copyrights © <span id="year"></span> eInvoicer</footer>
 </div>
 
 <script>
     const API_URL = "https://script.google.com/macros/s/AKfycbwpyyuTtbSv_2udttbXog8oUfq_vgFvr-y7DggVO-WXYkR4APnpB_0BS6TpSZLdnBrN/exec";
 
     document.getElementById('year').innerText = new Date().getFullYear();
+
+    // SIDEBAR TOGGLE LOGIC
+    function toggleSidebar() {
+        const dashboard = document.getElementById('main-dashboard');
+        if (window.innerWidth <= 768) {
+            dashboard.classList.toggle('sidebar-open');
+        } else {
+            dashboard.classList.toggle('sidebar-closed');
+        }
+    }
+
+    // NEW NAVIGATION HANDLER (Closes menu on mobile after selection)
+    function handleNav(id) {
+        if (window.innerWidth <= 768) {
+            document.getElementById('main-dashboard').classList.remove('sidebar-open');
+        }
+        
+        if(id === 'home') goToDashboard();
+        else showSection(id);
+    }
 
     // LANGUAGE DICTIONARY
     const dashboardTranslations = {
@@ -203,25 +241,20 @@
     function applyLanguage(lang) {
         const t = dashboardTranslations[lang];
         if (!t) return;
-
         document.querySelectorAll('[data-key]').forEach(el => {
             const key = el.getAttribute('data-key');
             if (t[key]) el.innerText = t[key];
         });
-
         if (lang === 'ur') {
             document.body.style.direction = 'rtl';
-            document.body.style.fontFamily = "'Tahoma', sans-serif";
             document.querySelector('aside').style.textAlign = 'right';
         } else {
             document.body.style.direction = 'ltr';
-            document.body.style.fontFamily = "'Segoe UI', sans-serif";
             document.querySelector('aside').style.textAlign = 'left';
         }
         localStorage.setItem("dashboardLang", lang);
     }
 
-    // CORE LOGIC FUNCTIONS (UNCHANGED)
     function toggleMenu(id) {
         const targetMenu = document.getElementById(id);
         const isOpen = targetMenu.classList.contains('open');
@@ -321,7 +354,6 @@
     window.onload = () => {
         const savedUser = localStorage.getItem("user");
         if (savedUser) setupDashboard(JSON.parse(savedUser));
-        
         const savedLang = localStorage.getItem("dashboardLang") || "en";
         document.getElementById('lang-switch').value = savedLang;
         applyLanguage(savedLang);
