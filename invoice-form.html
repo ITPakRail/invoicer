@@ -36,10 +36,15 @@
         .btn-gen:hover { background: #219150; }
         .delete-btn { color: red; cursor: pointer; font-weight: bold; border: none; background: none; }
 
+        /* Print Correction */
+        .print-only { display: none; }
+
         @media print {
-            .btn-gen, .delete-btn, #item-body tr td:last-child, th:last-child, .payment-input { display: none; }
-            input { border: none; }
+            .btn-gen, .delete-btn, #item-body tr td:last-child, th:last-child, .no-print { display: none !important; }
+            .print-only { display: inline !important; }
+            input { border: none; background: transparent; }
             .header-flex { background: none; border-bottom: 1px solid #ddd; }
+            .payment-input { display: none !important; }
         }
     </style>
 </head>
@@ -92,7 +97,11 @@
         
         <div class="total-row payment-row">
             <span data-key="lblPaid">Amount Received:</span>
-            <span><span class="curr-symbol"></span> <input type="number" id="paid-amount" class="payment-input" value="0" oninput="calculate()"></span>
+            <span>
+                <span class="curr-symbol"></span> 
+                <input type="number" id="paid-amount" class="payment-input no-print" value="0" oninput="calculate()">
+                <span id="print-paid-amount" class="print-only">0.00</span>
+            </span>
         </div>
         <div class="total-row balance-row">
             <span data-key="lblBalance">Balance (Udhaar):</span>
@@ -235,9 +244,13 @@
             document.getElementById("grand-total").innerText = grandTotal.toFixed(2);
 
             // Calculate Balance (Udhaar)
-            const paid = parseFloat(document.getElementById("paid-amount").value) || 0;
+            const paidValue = document.getElementById("paid-amount").value;
+            const paid = parseFloat(paidValue) || 0;
             const balance = grandTotal - paid;
             document.getElementById("balance-amount").innerText = balance.toFixed(2);
+            
+            // Sync the printing span
+            document.getElementById("print-paid-amount").innerText = paid.toFixed(2);
         }
 
         async function submitInvoice() {
