@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Client Statement</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap');
+        
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f8f9fa; transition: all 0.3s; }
+        body.rtl-mode { direction: rtl; font-family: 'Noto Nastaliq Urdu', serif; }
+        
+        .container { max-width: 900px; margin: auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 2px 15px rgba(0,0,0,0.1); }
+        
+        .header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; margin-bottom: 20px; padding-bottom: 10px; }
+        
+        .filter-area { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; background: #f1f3f4; padding: 15px; border-radius: 8px; }
+        .filter-area select, .filter-area input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; background: white; }
+        th { background: #2c3e50; color: white; padding: 12px; text-align: left; font-size: 14px; }
+        td { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; }
+        
+        body.rtl-mode th, body.rtl-mode td { text-align: right; }
+
+        .dr-text { color: #e74c3c; font-weight: bold; } /* Money Owed */
+        .cr-text { color: #27ae60; font-weight: bold; } /* Money Paid */
+        .bal-text { font-weight: bold; background: #f9f9f9; }
+
+        .print-btn { background: #34495e; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; }
+        
+        @media print {
+            .filter-area, .print-btn { display: none; }
+            body { padding: 0; background: white; }
+            .container { box-shadow: none; max-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-flex">
+        <h2 data-key="title">Client Statement (Ledger)</h2>
+        <button class="print-btn" onclick="window.print()" data-key="btnPrint">Print Statement</button>
+    </div>
+
+    <div class="filter-area">
+        <select id="clientSelect">
+            <option value="" data-key="optSelect">Select Client...</option>
+        </select>
+        <input type="date" id="fromDate">
+        <input type="date" id="toDate">
+        <button class="print-btn" onclick="loadLedger()" data-key="btnFilter">View</button>
+    </div>
+
+    <table id="ledgerTable">
+        <thead>
+            <tr>
+                <th data-key="thDate">Date</th>
+                <th data-key="thDesc">Description</th>
+                <th data-key="thDr">Debit (Owed)</th>
+                <th data-key="thCr">Credit (Paid)</th>
+                <th data-key="thBal">Balance</th>
+            </tr>
+        </thead>
+        <tbody id="ledgerBody">
+            </tbody>
+    </table>
+</div>
+
+<script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbwpyyuTtbSv_2udttbXog8oUfq_vgFvr-y7DggVO-WXYkR4APnpB_0BS6TpSZLdnBrN/exec";
+    const user = JSON.parse(localStorage.getItem("user"));
+    
+    const i18n = {
+        en: {
+            title: "Client Statement (Ledger)", btnPrint: "Print", optSelect: "Select Client...",
+            btnFilter: "Show Statement", thDate: "Date", thDesc: "Description",
+            thDr: "Debit (Dr)", thCr: "Credit (Cr)", thBal: "Balance"
+        },
+        ur: {
+            title: "کلائنٹ کا کھاتہ (لیجر)", btnPrint: "پرنٹ کریں", optSelect: "کلائنٹ منتخب کریں...",
+            btnFilter: "تفصیل دیکھیں", thDate: "تاریخ", thDesc: "تفصیل",
+            thDr: "نام (ڈیبٹ)", thCr: "جمع (کریڈٹ)", thBal: "بقایا رقم"
+        }
+    };
+
+    window.onload = async () => {
+        applyLanguage();
+        await populateClients();
+    };
+
+    function applyLanguage() {
+        const lang = localStorage.getItem("dashboardLang") || "en";
+        const t = i18n[lang];
+        document.querySelectorAll('[data-key]').forEach(el => {
+            const key = el.getAttribute('data-key');
+            if (t[key]) el.innerText = t[key];
+        });
+        document.body.classList.toggle('rtl-mode', lang === 'ur');
+    }
+
+    async function populateClients() {
+        try {
+            const response = await fetch(`${API_URL}?action=getClients&sheetId=${user.sheetId}`);
+            const clients = await response.json();
+            const select = document.getElementById("clientSelect");
+            clients.forEach(c => {
+                let opt = document.createElement("option");
+                opt.value = c.Name;
+                opt.innerText = c.Name;
+                select.appendChild(opt);
+            });
+        } catch(e) { console.error("Client Load Error"); }
+    }
+
+    async function loadLedger() {
+        const clientName = document.getElementById("clientSelect").value;
+        const tbody = document.getElementById("ledgerBody");
+        if(!clientName) return;
+
+        tbody.innerHTML = "<tr><td colspan='5' style='text-align:center;'>Loading...</td></tr>";
+
+        try {
+            // Action "getLedger" should return all rows from the user's "ledger" sheet
+            const response = await fetch(`${API_URL}?action=getInvoices&sheetId=${user.sheetId}`); // Reusing your getter logic
+            const rawData = await response.json();
+            
+            // For now, filtering from main data (or update your GS to have getLedger)
+            const filtered = rawData.filter(row => row.Client_Name === clientName);
+            
+            tbody.innerHTML = "";
+            let runningBalance = 0;
+
+            filtered.forEach(row => {
+                const total = parseFloat(row.Total_Amount) || 0;
+                const paid = parseFloat(row.Paid_Amount) || 0;
+                const balance = parseFloat(row.Balance_Amount) || 0;
+
+                // Creating two entries for the ledger to show the history: 1 for Bill, 1 for Payment
+                // Note: Once your Ledger sheet is populated via record-payment, 
+                // you would pull directly from the "ledger" sheet instead.
+
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td>${row.Date || '---'}</td>
+                    <td>Invoice #${row.Invoice_ID}</td>
+                    <td class="dr-text">${total.toFixed(2)}</td>
+                    <td class="cr-text">${paid.toFixed(2)}</td>
+                    <td class="bal-text">${balance.toFixed(2)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } catch (e) {
+            tbody.innerHTML = "<tr><td colspan='5'>Error loading data.</td></tr>";
+        }
+    }
+</script>
+</body>
+</html>
