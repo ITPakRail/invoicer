@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Record Payment</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap');
+        
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f0f2f5; transition: all 0.3s; }
+        body.rtl-mode { direction: rtl; font-family: 'Noto Nastaliq Urdu', serif; }
+        
+        .payment-card { max-width: 500px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        h2 { color: #1a73e8; margin-top: 0; border-bottom: 2px solid #f0f2f5; padding-bottom: 10px; }
+        
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; color: #444; }
+        input { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 6px; font-size: 16px; box-sizing: border-box; outline: none; }
+        input:focus { border-color: #1a73e8; }
+        input:disabled { background: #f9f9f9; color: #777; border-color: #eee; }
+
+        .info-box { background: #e8f0fe; padding: 15px; border-radius: 6px; margin-bottom: 20px; display: none; }
+        .info-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
+        .info-row b { color: #1a73e8; }
+
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        .btn-search { background: #34495e; color: white; margin-bottom: 10px; }
+        .btn-save { background: #27ae60; color: white; display: none; }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        
+        #statusMsg { text-align: center; margin-top: 15px; font-weight: bold; }
+        .success { color: #27ae60; }
+        .error { color: #e74c3c; }
+    </style>
+</head>
+<body>
+
+<div class="payment-card">
+    <h2 data-key="title">Record Payment</h2>
+    
+    <div class="form-group">
+        <label data-key="lblInvId">Enter Invoice ID (e.g. INV-1001)</label>
+        <input type="text" id="invIdInput" placeholder="INV-XXXX">
+    </div>
+    <button class="btn btn-search" onclick="fetchInvoiceDetails()" data-key="btnSearch">Find Invoice</button>
+
+    <div id="paymentArea">
+        <div class="info-box" id="detailsBox">
+            <div class="info-row"><span data-key="lblClient">Client:</span> <b id="dispClient">-</b></div>
+            <div class="info-row"><span data-key="lblTotal">Total Bill:</span> <b id="dispTotal">0.00</b></div>
+            <div class="info-row"><span data-key="lblPaid">Already Paid:</span> <b id="dispPaid">0.00</b></div>
+            <div class="info-row"><span data-key="lblBal">Current Balance:</span> <b id="dispBal" style="color:#e74c3c">0.00</b></div>
+        </div>
+
+        <div class="form-group" id="amountInputGroup" style="display: none;">
+            <label data-key="lblNewPay">Amount Received Now:</label>
+            <input type="number" id="newPayment" placeholder="0.00">
+        </div>
+
+        <button class="btn btn-save" id="saveBtn" onclick="submitPayment()" data-key="btnSave">Confirm Payment</button>
+    </div>
+
+    <div id="statusMsg"></div>
+</div>
+
+<script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbwpyyuTtbSv_2udttbXog8oUfq_vgFvr-y7DggVO-WXYkR4APnpB_0BS6TpSZLdnBrN/exec";
+    const user = JSON.parse(localStorage.getItem("user"));
+    
+    const i18n = {
+        en: {
+            title: "Record Payment (Ledger)",
+            lblInvId: "Enter Invoice ID",
+            btnSearch: "Find Invoice",
+            lblClient: "Client Name:",
+            lblTotal: "Total Bill:",
+            lblPaid: "Previously Paid:",
+            lblBal: "Remaining Balance:",
+            lblNewPay: "Enter Amount Received Now:",
+            btnSave: "Update Ledger & Save",
+            success: "✅ Payment recorded successfully!",
+            errNotFound: "❌ Invoice not found.",
+            errEnterAmt: "Please enter a valid amount."
+        },
+        ur: {
+            title: "رقم وصول کریں (لیجر)",
+            lblInvId: "انوائس آئی ڈی درج کریں",
+            btnSearch: "تلاش کریں",
+            lblClient: "کلائنٹ کا نام:",
+            lblTotal: "کل بل:",
+            lblPaid: "پہلے سے وصول شدہ:",
+            lblBal: "بقیہ ادھار (بقایا):",
+            lblNewPay: "ابھی موصول ہونے والی رقم:",
+            btnSave: "رقم وصولی کا اندراج کریں",
+            success: "✅ ادائیگی کامیابی سے درج کر لی گئی ہے!",
+            errNotFound: "❌ اس آئی ڈی کی کوئی انوائس نہیں ملی۔",
+            errEnterAmt: "براہ کرم درست رقم درج کریں۔"
+        }
+    };
+
+    window.onload = applyLanguage;
+
+    function applyLanguage() {
+        const lang = localStorage.getItem("dashboardLang") || "en";
+        const t = i18n[lang];
+        document.querySelectorAll('[data-key]').forEach(el => {
+            const key = el.getAttribute('data-key');
+            if (t[key]) el.innerText = t[key];
+        });
+        document.body.classList.toggle('rtl-mode', lang === 'ur');
+    }
+
+    async function fetchInvoiceDetails() {
+        const invId = document.getElementById("invIdInput").value.trim().toUpperCase();
+        const msg = document.getElementById("statusMsg");
+        const lang = localStorage.getItem("dashboardLang") || "en";
+        
+        if (!invId) return;
+        msg.innerText = "...";
+
+        try {
+            const response = await fetch(`${API_URL}?action=getInvoices&sheetId=${user.sheetId}`);
+            const data = await response.json();
+            const inv = data.find(i => i.Invoice_ID === invId);
+
+            if (inv) {
+                document.getElementById("detailsBox").style.display = "block";
+                document.getElementById("amountInputGroup").style.display = "block";
+                document.getElementById("saveBtn").style.display = "block";
+                
+                document.getElementById("dispClient").innerText = inv.Client_Name;
+                document.getElementById("dispTotal").innerText = parseFloat(inv.Total_Amount).toFixed(2);
+                document.getElementById("dispPaid").innerText = parseFloat(inv.Paid_Amount).toFixed(2);
+                document.getElementById("dispBal").innerText = parseFloat(inv.Balance_Amount).toFixed(2);
+                
+                msg.innerText = "";
+                document.getElementById("invIdInput").disabled = true;
+            } else {
+                msg.className = "error";
+                msg.innerText = i18n[lang].errNotFound;
+            }
+        } catch (e) {
+            msg.innerText = "Error connecting to server.";
+        }
+    }
+
+    async function submitPayment() {
+        const amount = document.getElementById("newPayment").value;
+        const invId = document.getElementById("invIdInput").value.toUpperCase();
+        const lang = localStorage.getItem("dashboardLang") || "en";
+        const msg = document.getElementById("statusMsg");
+
+        if (!amount || amount <= 0) {
+            alert(i18n[lang].errEnterAmt);
+            return;
+        }
+
+        msg.innerText = "Processing...";
+        
+        const payload = {
+            action: "recordPayment",
+            sheetId: user.sheetId,
+            invoiceId: invId,
+            amountReceived: parseFloat(amount)
+        };
+
+        try {
+            await fetch(API_URL, {
+                method: "POST",
+                mode: "no-cors",
+                body: JSON.stringify(payload)
+            });
+
+            msg.className = "success";
+            msg.innerText = i18n[lang].success;
+            
+            // Reset after success
+            setTimeout(() => { location.reload(); }, 2000);
+        } catch (e) {
+            msg.innerText = "Error saving payment.";
+        }
+    }
+</script>
+
+</body>
+</html>
