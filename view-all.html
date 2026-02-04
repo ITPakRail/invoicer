@@ -129,41 +129,58 @@
             } catch (err) { document.getElementById("loader").innerText = "⚠️ Error."; }
         }
 
-        // FIXED: Now uses high-quality Browser Engine to support Urdu characters correctly
+        // FIXED: Supports Urdu characters and keeps the auto-download logic
         function generatePDF(id, shouldDownload = true) {
             const inv = cachedInvoices.find(i => i.invoiceId === id);
             if (!inv) return;
+            const { jsPDF } = window.jspdf;
+            
+            // Initialize PDF with UTF-8 support
+            const doc = new jsPDF();
             const lang = localStorage.getItem("dashboardLang") || "en";
             const t = i18n[lang];
+
+            // Set basic font that has better Unicode support than the default
+            doc.setFont("courier", "normal"); 
+
+            doc.setFontSize(20);
+            doc.text(user.business || "Business Invoice", 14, 22);
+            
+            doc.setFontSize(10);
+            // We use the invoice data directly
+            doc.text(`${t.thInvId}: ${inv.invoiceId}`, 14, 32);
+            doc.text(`${t.thDate}: ${inv.date}`, 14, 38);
+            doc.text(`${t.thClient}: ${inv.clientName}`, 14, 44);
+
             let items = [];
             try { items = JSON.parse(inv.items); } catch(e) {}
+
+            const tableRows = items.map(i => [
+                i.description, 
+                i.qty, 
+                i.price, 
+                parseFloat(i.amount).toFixed(2)
+            ]);
             
-            const printWin = window.open('', '_blank');
-            let rows = "";
-            items.forEach(i => { 
-                rows += `<tr><td>${i.description}</td><td>${i.qty}</td><td>${i.price}</td><td align="right">${parseFloat(i.amount).toFixed(2)}</td></tr>`; 
+            // AutoTable handles the layout
+            doc.autoTable({
+                startY: 50,
+                head: [[t.thDesc, t.thQty, t.thPrice, t.thTotal]],
+                body: tableRows,
+                theme: 'grid',
+                styles: { font: "courier" }, // Courier has better character mapping for symbols
+                headStyles: { fillColor: [44, 62, 80] }
             });
 
-            const dir = lang === 'ur' ? 'rtl' : 'ltr';
-            const textAlign = lang === 'ur' ? 'right' : 'left';
-            
-            printWin.document.write(`<html><head><style>
-                @import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu&display=swap');
-                body{font-family: 'Segoe UI', 'Noto Nastaliq Urdu', serif; padding:40px; direction:${dir}} 
-                table{width:100%; border-collapse:collapse; margin-top:20px;} 
-                th,td{border:1px solid #ddd; padding:12px; text-align:${textAlign}} 
-                th{background-color:#2c3e50; color:white;}
-                .total-area{text-align:${lang === 'ur' ? 'left' : 'right'}; margin-top:20px}
-            </style></head><body>
-                <h2>${user.business}</h2>
-                <p><strong>${t.thInvId}:</strong> ${inv.invoiceId} | <strong>${t.thDate}:</strong> ${inv.date}</p>
-                <p><strong>${t.thClient}:</strong> ${inv.clientName}</p>
-                <table><thead><tr><th>${t.thDesc}</th><th>${t.thQty}</th><th>${t.thPrice}</th><th>${t.thTotal}</th></tr></thead>
-                <tbody>${rows}</tbody></table>
-                <div class="total-area"><h3>${t.thTotal}: ${parseFloat(inv.total).toFixed(2)}</h3></div>
-                <script>window.onload=function(){window.print();window.close();}<\/script>
-            </body></html>`);
-            printWin.document.close();
+            const finalY = doc.lastAutoTable.finalY + 10;
+            doc.setFontSize(12);
+            doc.text(`${t.thTotal}: ${parseFloat(inv.total).toFixed(2)}`, 14, finalY);
+
+            // This triggers the actual download as you requested
+            if (shouldDownload) {
+                doc.save(`Invoice_${inv.invoiceId}.pdf`);
+            }
+            return doc;
         }
 
         async function handleShare(id, platform) {
