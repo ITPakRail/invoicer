@@ -4,15 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
+        /* Import Urdu Font */
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap');
+
         :root { --primary: #2c3e50; --accent: #3498db; --success: #27ae60; --gray: #95a5a6; }
-        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: white; }
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: white; transition: all 0.3s; }
+        
+        /* RTL & Urdu Support */
+        body.rtl-mode { direction: rtl; font-family: 'Noto Nastaliq Urdu', serif; }
+        body.rtl-mode .form-container { text-align: right; }
+        body.rtl-mode input { text-align: right; font-family: 'Noto Nastaliq Urdu', serif; }
+        /* Keep numbers LTR even in Urdu mode for clarity */
+        body.rtl-mode input[type="number"] { direction: ltr; text-align: left; }
+
         .form-container { max-width: 450px; margin: auto; border: 1px solid #eee; padding: 25px; border-radius: 10px; box-shadow: 0 2px 15px rgba(0,0,0,0.05); }
         h2 { color: var(--primary); border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin-top: 0; }
         .form-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; outline: none; }
+        input:focus { border-color: var(--accent); }
+        
         .button-group { display: flex; gap: 10px; margin-top: 20px; }
-        button { flex: 1; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; color: white; }
+        button { flex: 1; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; color: white; transition: 0.3s; }
         .btn-save { background: var(--success); }
         .btn-cancel { background: var(--gray); }
         #status { margin-top: 15px; text-align: center; font-weight: bold; font-size: 14px; }
@@ -21,34 +34,96 @@
 <body>
 
 <div class="form-container">
-    <h2>Tax Settings</h2>
+    <h2 data-key="title">Tax Settings</h2>
     <div class="form-group">
-        <label>Tax Name</label>
-        <input type="text" id="tax-name" placeholder="e.g. Sales Tax or VAT">
+        <label data-key="lblTaxName">Tax Name</label>
+        <input type="text" id="tax-name" class="urdu-input" placeholder="e.g. Sales Tax or VAT" data-placeholder="pTaxName">
     </div>
     <div class="form-group">
-        <label>Tax Rate (%)</label>
-        <input type="number" id="tax-rate" placeholder="e.g. 5">
+        <label data-key="lblTaxRate">Tax Rate (%)</label>
+        <input type="number" id="tax-rate" placeholder="e.g. 5" data-placeholder="pTaxRate">
     </div>
 
     <div class="button-group">
-        <button class="btn-save" onclick="saveTax()">Save Tax Info</button>
-        <button class="btn-cancel" onclick="window.location.reload()">Cancel</button>
+        <button class="btn-save" onclick="saveTax()" data-key="btnSave">Save Tax Info</button>
+        <button class="btn-cancel" onclick="window.location.reload()" data-key="btnCancel">Cancel</button>
     </div>
     <div id="status"></div>
 </div>
 
 <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbwpyyuTtbSv_2udttbXog8oUfq_vgFvr-y7DggVO-WXYkR4APnpB_0BS6TpSZLdnBrN/exec"; // Update this!
+    const API_URL = "https://script.google.com/macros/s/AKfycbwpyyuTtbSv_2udttbXog8oUfq_vgFvr-y7DggVO-WXYkR4APnpB_0BS6TpSZLdnBrN/exec"; 
     const user = JSON.parse(localStorage.getItem("user"));
 
+    const i18n = {
+        en: {
+            title: "Tax Settings", lblTaxName: "Tax Name", lblTaxRate: "Tax Rate (%)",
+            btnSave: "Save Tax Info", btnCancel: "Cancel",
+            pTaxName: "e.g. Sales Tax or VAT", pTaxRate: "e.g. 5",
+            loading: "⏳ Loading current settings...", fetchErr: "Error fetching settings.",
+            saving: "⏳ Saving to your private sheet...", success: "✅ Tax settings saved successfully!",
+            error: "❌ Error saving data.", alertFields: "Please fill all fields"
+        },
+        ur: {
+            title: "ٹیکس کی ترتیبات", lblTaxName: "ٹیکس کا نام", lblTaxRate: "ٹیکس کی شرح (%)",
+            btnSave: "ٹیکس محفوظ کریں", btnCancel: "منسوخ کریں",
+            pTaxName: "مثلاً سیلز ٹیکس یا واٹ", pTaxRate: "مثلاً 5",
+            loading: "⏳ ترتیبات لوڈ ہو رہی ہیں...", fetchErr: "ترتیبات حاصل کرنے میں خرابی۔",
+            saving: "⏳ محفوظ ہو رہا ہے...", success: "✅ ٹیکس کی ترتیبات محفوظ ہوگئیں!",
+            error: "❌ محفوظ کرنے میں خرابی۔", alertFields: "براہ کرم تمام خانے پُر کریں۔"
+        }
+    };
+
+    const urduMap = {
+        'a': 'ا', 'b': 'ب', 'c': 'چ', 'd': 'د', 'e': 'ع', 'f': 'ف', 'g': 'گ', 'h': 'ہ', 'i': 'ی', 'j': 'ج',
+        'k': 'ک', 'l': 'ل', 'm': 'م', 'n': 'ن', 'o': 'ہ', 'p': 'پ', 'q': 'ق', 'r': 'ر', 's': 'س', 't': 'ت',
+        'u': 'و', 'v': 'ط', 'w': 'و', 'x': 'ش', 'y': 'ے', 'z': 'ز', 'A': 'آ', 'S': 'ص', 'D': 'ڈ', 'T': 'ٹ'
+    };
+
+    function applyLanguage() {
+        const lang = localStorage.getItem("dashboardLang") || "en";
+        const t = i18n[lang];
+        
+        document.querySelectorAll('[data-key]').forEach(el => {
+            const key = el.getAttribute('data-key');
+            if (t[key]) el.innerText = t[key];
+        });
+
+        document.querySelectorAll('[data-placeholder]').forEach(el => {
+            const key = el.getAttribute('data-placeholder');
+            if (t[key]) el.placeholder = t[key];
+        });
+
+        if (lang === 'ur') {
+            document.body.classList.add('rtl-mode');
+        } else {
+            document.body.classList.remove('rtl-mode');
+        }
+    }
+
+    // Urdu Typing Logic
+    document.addEventListener('keypress', (e) => {
+        const lang = localStorage.getItem("dashboardLang") || "en";
+        if (lang === 'ur' && e.target.classList.contains('urdu-input')) {
+            if (urduMap[e.key]) {
+                e.preventDefault();
+                const start = e.target.selectionStart;
+                const end = e.target.selectionEnd;
+                const text = e.target.value;
+                e.target.value = text.substring(0, start) + urduMap[e.key] + text.substring(end);
+                e.target.selectionStart = e.target.selectionEnd = start + 1;
+            }
+        }
+    });
+
     window.onload = async () => {
+        applyLanguage();
         if (!user || !user.sheetId) return;
+        const lang = localStorage.getItem("dashboardLang") || "en";
         const status = document.getElementById('status');
-        status.innerText = "⏳ Loading current settings...";
+        status.innerText = i18n[lang].loading;
         
         try {
-            // Updated to use sheetId
             const res = await fetch(`${API_URL}?action=getSettings&sheetId=${user.sheetId}`);
             const data = await res.json();
             
@@ -58,23 +133,25 @@
                 status.innerText = "";
             }
         } catch (e) { 
-            status.innerText = "Error fetching settings."; 
+            status.innerText = i18n[lang].fetchErr; 
         }
     };
 
     async function saveTax() {
+        const lang = localStorage.getItem("dashboardLang") || "en";
+        const t = i18n[lang];
         const name = document.getElementById('tax-name').value.trim();
         const rate = document.getElementById('tax-rate').value.trim();
         const status = document.getElementById('status');
 
-        if(!name || !rate) { alert("Please fill all fields"); return; }
+        if(!name || !rate) { alert(t.alertFields); return; }
 
         status.style.color = "orange";
-        status.innerText = "⏳ Saving to your private sheet...";
+        status.innerText = t.saving;
         
         const payload = {
             action: "saveTax",
-            sheetId: user.sheetId, // Critical for multi-tenant
+            sheetId: user.sheetId,
             userId: user.id,
             taxName: name,
             taxRate: rate
@@ -83,15 +160,15 @@
         try {
             await fetch(API_URL, {
                 method: 'POST',
-                mode: 'no-cors', // Avoids CORS issues with GAS
+                mode: 'no-cors',
                 body: JSON.stringify(payload)
             });
             
             status.style.color = "green";
-            status.innerText = "✅ Tax settings saved successfully!";
+            status.innerText = t.success;
         } catch (e) {
             status.style.color = "red";
-            status.innerText = "❌ Error saving data.";
+            status.innerText = t.error;
         }
     }
 </script>
