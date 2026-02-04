@@ -9,7 +9,6 @@
         @import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap');
 
         body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #fff; color: #333; transition: all 0.3s; }
-        
         body.rtl-mode { direction: rtl; font-family: 'Noto Nastaliq Urdu', serif; }
         body.rtl-mode th { text-align: right; }
         body.rtl-mode #searchBox { text-align: right; }
@@ -21,7 +20,6 @@
         th { background: #2c3e50; color: white; padding: 15px; text-align: left; }
         td { padding: 12px; border-bottom: 1px solid #eee; }
         
-        /* Status Badges */
         .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
         .status-paid { background: #d4edda; color: #155724; }
         .status-partial { background: #fff3cd; color: #856404; }
@@ -30,7 +28,6 @@
         .btn { padding: 8px 14px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-right: 4px; font-size: 12px; transition: 0.3s; }
         .btn-print { background: #3498db; color: white; }
         .btn-wa { background: #25D366; color: white; }
-        .btn-mail { background: #e74c3c; color: white; }
         .btn:hover { opacity: 0.8; }
         
         #loader { text-align: center; padding: 50px; }
@@ -70,8 +67,8 @@
                 searchPlace: "🔍 Search by Client Name or ID...", btnRefresh: "🔄 Refresh",
                 fetchMsg: "Fetching your records...", thDate: "Date", thInvId: "Invoice ID",
                 thClient: "Client Name", thTotal: "Grand Total", thActions: "Actions",
-                thStatus: "Status", thPaid: "Paid", thBal: "Balance",
-                btnPrint: "PDF / Print", btnWA: "WhatsApp", btnMail: "Email", noPhone: "No Phone",
+                thStatus: "Status", thPaid: "Received", thBal: "Balance",
+                btnPrint: "PDF / Print", btnWA: "WhatsApp", noPhone: "No Phone",
                 thDesc: "Description", thQty: "Qty", thPrice: "Price"
             },
             ur: {
@@ -79,7 +76,7 @@
                 fetchMsg: "ریکارڈ حاصل کیا جا رہا ہے...", thDate: "تاریخ", thInvId: "انوائس نمبر",
                 thClient: "کلائنٹ کا نام", thTotal: "کل رقم", thActions: "ایکشنز",
                 thStatus: "حالت", thPaid: "وصول شدہ", thBal: "بقایا",
-                btnPrint: "پی ڈی ایف / پرنٹ", btnWA: "واٹس ایپ", btnMail: "ای میل", noPhone: "فون نمبر نہیں ہے",
+                btnPrint: "پی ڈی ایف / پرنٹ", btnWA: "واٹس ایپ", noPhone: "فون نمبر نہیں ہے",
                 thDesc: "تفصیل", thQty: "تعداد", thPrice: "قیمت"
             }
         };
@@ -96,7 +93,6 @@
             const search = document.getElementById("searchBox");
             if (search && t.searchPlace) search.placeholder = t.searchPlace;
             document.body.classList.toggle('rtl-mode', lang === 'ur');
-            document.body.style.direction = lang === 'ur' ? "rtl" : "ltr";
         }
 
         async function loadData() {
@@ -109,13 +105,18 @@
             try {
                 const response = await fetch(`${DATA_API_URL}?action=getInvoices&userId=${user.id}&sheetId=${user.sheetId}`);
                 const data = await response.json();
+                
+                // MAPPED TO YOUR EXACT SHEET COLUMNS:
                 cachedInvoices = data.map(row => ({
-                    invoiceId: row.invoiceId, clientName: row.clientName,
-                    clientPhone: row.clientPhone || "", date: row.date,
-                    subtotal: row.subtotal || 0, taxAmount: row.taxAmount || 0,
-                    total: row.total || 0, items: row.items_json || "[]",
-                    paidAmount: row.paidAmount || 0, balanceAmount: row.balanceAmount || 0,
-                    status: row.status || "Paid"
+                    invoiceId: row.Invoice_ID, 
+                    clientName: row.Client_Name,
+                    clientPhone: row.Client_Phone || "", 
+                    date: row.Date,
+                    total: row.Total_Amount || 0, 
+                    items: row.Items_JSON || "[]",
+                    paidAmount: row.Paid_Amount || 0, 
+                    balanceAmount: row.Balance_Amount || 0,
+                    status: row.Status || "Paid"
                 }));
 
                 document.getElementById("loader").classList.add("hidden");
@@ -131,21 +132,20 @@
                         <td>${inv.clientName}<br><small>${inv.clientPhone || i18n[lang].noPhone}</small></td>
                         <td>
                             <strong>${parseFloat(inv.total).toFixed(2)}</strong><br>
-                            <small>${i18n[lang].thBal}: ${parseFloat(inv.balanceAmount).toFixed(2)}</small>
+                            <small style="color:#e74c3c">${i18n[lang].thBal}: ${parseFloat(inv.balanceAmount).toFixed(2)}</small>
                         </td>
                         <td><span class="badge ${statusClass}">${inv.status}</span></td>
                         <td>
-                            <button class="btn btn-print" onclick="generatePDF('${inv.invoiceId}', true)">${i18n[lang].btnPrint}</button>
+                            <button class="btn btn-print" onclick="generatePDF('${inv.invoiceId}')">${i18n[lang].btnPrint}</button>
                             <button class="btn btn-wa" onclick="handleShare('${inv.invoiceId}', 'wa')">${i18n[lang].btnWA}</button>
-                            <button class="btn btn-mail" onclick="handleShare('${inv.invoiceId}', 'mail')">${i18n[lang].btnMail}</button>
                         </td>
                     `;
                     tbody.appendChild(tr);
                 });
-            } catch (err) { document.getElementById("loader").innerText = "⚠️ Error."; }
+            } catch (err) { document.getElementById("loader").innerText = "⚠️ Error loading data."; }
         }
 
-        function generatePDF(id, shouldDownload = true) {
+        function generatePDF(id) {
             const inv = cachedInvoices.find(i => i.invoiceId === id);
             if (!inv) return;
             const lang = localStorage.getItem("dashboardLang") || "en";
@@ -168,20 +168,17 @@
                 table{width:100%; border-collapse:collapse; margin-top:20px} 
                 th,td{border:1px solid #ddd; padding:10px; text-align:${align}} 
                 th{background:#f4f4f4}
-                .total-area{text-align:${lang === 'ur' ? 'left' : 'right'}; margin-top:20px}
-                .payment-info{margin-top:10px; border-top:1px solid #eee; padding-top:10px}
+                .total-area{text-align:${lang === 'ur' ? 'left' : 'right'}; margin-top:20px; border-top:2px solid #333;}
             </style></head><body>
                 <h2>${user.business}</h2>
                 <p>${t.thInvId}: ${inv.invoiceId} | ${t.thDate}: ${inv.date}</p>
-                <p>${t.thClient}: ${inv.clientName}</p>
+                <p><strong>${t.thClient}:</strong> ${inv.clientName}</p>
                 <table><thead><tr><th>${t.thDesc}</th><th>${t.thQty}</th><th>${t.thPrice}</th><th>${t.thTotal}</th></tr></thead>
                 <tbody>${rows}</tbody></table>
                 <div class="total-area">
-                    <h3>${t.thTotal}: ${parseFloat(inv.total).toFixed(2)}</h3>
-                    <div class="payment-info">
-                        <p>${t.thPaid}: ${parseFloat(inv.paidAmount).toFixed(2)}</p>
-                        <p><strong>${t.thBal}: ${parseFloat(inv.balanceAmount).toFixed(2)}</strong></p>
-                    </div>
+                    <p>${t.thTotal}: ${parseFloat(inv.total).toFixed(2)}</p>
+                    <p>${t.thPaid}: ${parseFloat(inv.paidAmount).toFixed(2)}</p>
+                    <h3>${t.thBal}: ${parseFloat(inv.balanceAmount).toFixed(2)}</h3>
                 </div>
                 <script>window.onload=function(){window.print();window.close();}<\/script>
             </body></html>`);
@@ -192,36 +189,30 @@
             const inv = cachedInvoices.find(i => i.invoiceId === id);
             if (!inv) return;
 
-            generatePDF(id, true);
-
             const lang = localStorage.getItem("dashboardLang") || "en";
             let items = [];
             try { items = JSON.parse(inv.items); } catch(e) {}
             
             let itemText = "";
             items.forEach(item => {
-                itemText += `• ${item.description} (Qty: ${item.qty} x ${item.price}) = ${parseFloat(item.amount).toFixed(2)}\n`;
+                itemText += `• ${item.description} (${item.qty}x${item.price}) = ${item.amount}\n`;
             });
 
             const labels = lang === 'ur' ? 
-                { inv: "انوائس", date: "تاریخ", client: "کلائنٹ", items: "اشیاء", total: "کل رقم", paid: "وصول شدہ", bal: "بقایا", status: "حالت" } : 
-                { inv: "INVOICE", date: "Date", client: "Client", items: "Items", total: "Total", paid: "Paid", bal: "Balance", status: "Status" };
+                { inv: "انوائس", date: "تاریخ", client: "کلائنٹ", total: "کل رقم", paid: "وصول شدہ", bal: "بقایا" } : 
+                { inv: "INVOICE", date: "Date", client: "Client", total: "Total", paid: "Paid", bal: "Balance" };
 
-            const fullMessage = `📄 *${labels.inv}: ${inv.invoiceId}*\n` +
+            const fullMessage = `*${labels.inv}: ${inv.invoiceId}*\n` +
                                 `📅 ${labels.date}: ${inv.date}\n` +
                                 `👤 ${labels.client}: ${inv.clientName}\n\n` +
-                                `*${labels.items}:*\n${itemText}\n` +
+                                `${itemText}\n` +
                                 `💰 *${labels.total}: ${parseFloat(inv.total).toFixed(2)}*\n` +
                                 `📥 ${labels.paid}: ${parseFloat(inv.paidAmount).toFixed(2)}\n` +
                                 `🚩 *${labels.bal}: ${parseFloat(inv.balanceAmount).toFixed(2)} (${inv.status})*\n\n` +
-                                `Regards, *${user.business}*`;
+                                `Regards: *${user.business}*`;
 
-            if (platform === 'wa') {
-                const cleanPhone = String(inv.clientPhone).replace(/\D/g, ''); 
-                window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(fullMessage)}`, '_blank');
-            } else {
-                window.location.href = `mailto:?subject=Invoice ${inv.invoiceId}&body=${encodeURIComponent(fullMessage)}`;
-            }
+            const cleanPhone = String(inv.clientPhone).replace(/\D/g, ''); 
+            window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(fullMessage)}`, '_blank');
         }
 
         function filterTable() {
