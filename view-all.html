@@ -6,17 +6,29 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #fff; color: #333; }
+        /* Import Urdu Font */
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap');
+
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #fff; color: #333; transition: all 0.3s; }
+        
+        /* RTL & Urdu Support */
+        body.rtl-mode { direction: rtl; font-family: 'Noto Nastaliq Urdu', serif; }
+        body.rtl-mode th { text-align: right; }
+        body.rtl-mode #searchBox { text-align: right; }
+
         .header-area { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 10px; }
         #searchBox { flex-grow: 1; padding: 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; outline: none; }
+        
         table { width: 100%; border-collapse: collapse; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
         th { background: #2c3e50; color: white; padding: 15px; text-align: left; }
         td { padding: 12px; border-bottom: 1px solid #eee; }
+        
         .btn { padding: 8px 14px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-right: 4px; font-size: 12px; transition: 0.3s; }
         .btn-print { background: #3498db; color: white; }
         .btn-wa { background: #25D366; color: white; }
         .btn-mail { background: #e74c3c; color: white; }
         .btn:hover { opacity: 0.8; }
+        
         #loader { text-align: center; padding: 50px; }
         .hidden { display: none; }
     </style>
@@ -24,64 +36,90 @@
 <body>
 
     <div class="header-area">
-        <input type="text" id="searchBox" placeholder="🔍 Search by Client Name or ID..." onkeyup="filterTable()">
-        <button class="btn" style="background:#eee; color:#333;" onclick="loadData()">🔄 Refresh</button>
+        <input type="text" id="searchBox" placeholder="🔍 Search by Client Name or ID..." data-placeholder="searchPlace" onkeyup="filterTable()">
+        <button class="btn" style="background:#eee; color:#333;" onclick="loadData()" data-key="btnRefresh">🔄 Refresh</button>
     </div>
 
-    <div id="loader">Fetching your records...</div>
+    <div id="loader" data-key="fetchMsg">Fetching your records...</div>
 
     <table id="invTable" class="hidden">
         <thead>
             <tr>
-                <th>Date</th>
-                <th>Invoice ID</th>
-                <th>Client Name</th>
-                <th>Grand Total</th>
-                <th>Actions</th>
+                <th data-key="thDate">Date</th>
+                <th data-key="thInvId">Invoice ID</th>
+                <th data-key="thClient">Client Name</th>
+                <th data-key="thTotal">Grand Total</th>
+                <th data-key="thActions">Actions</th>
             </tr>
         </thead>
         <tbody id="tableBody"></tbody>
     </table>
 
     <script>
-        // Use the same URL you used for Login/Invoice creation
         const DATA_API_URL = "https://script.google.com/macros/s/AKfycbwpyyuTtbSv_2udttbXog8oUfq_vgFvr-y7DggVO-WXYkR4APnpB_0BS6TpSZLdnBrN/exec"; 
         const user = JSON.parse(localStorage.getItem("user"));
         let cachedInvoices = [];
 
-        window.onload = loadData;
+        const i18n = {
+            en: {
+                searchPlace: "🔍 Search by Client Name or ID...", btnRefresh: "🔄 Refresh",
+                fetchMsg: "Fetching your records...", thDate: "Date", thInvId: "Invoice ID",
+                thClient: "Client Name", thTotal: "Grand Total", thActions: "Actions",
+                btnPrint: "Print", btnWA: "WhatsApp", btnMail: "Email", noPhone: "No Phone"
+            },
+            ur: {
+                searchPlace: "🔍 کلائنٹ کا نام یا آئی ڈی تلاش کریں...", btnRefresh: "🔄 ریفریش",
+                fetchMsg: "ریکارڈ حاصل کیا جا رہا ہے...", thDate: "تاریخ", thInvId: "انوائس نمبر",
+                thClient: "کلائنٹ کا نام", thTotal: "کل رقم", thActions: "ایکشنز",
+                btnPrint: "پرنٹ", btnWA: "واٹس ایپ", btnMail: "ای میل", noPhone: "فون نمبر موجود نہیں"
+            }
+        };
+
+        function applyLanguage() {
+            const lang = localStorage.getItem("dashboardLang") || "en";
+            const t = i18n[lang];
+            
+            document.querySelectorAll('[data-key]').forEach(el => {
+                const key = el.getAttribute('data-key');
+                if (t[key]) el.innerText = t[key];
+            });
+
+            const search = document.getElementById("searchBox");
+            if (t.searchPlace) search.placeholder = t.searchPlace;
+
+            if (lang === 'ur') {
+                document.body.classList.add('rtl-mode');
+            } else {
+                document.body.classList.remove('rtl-mode');
+            }
+        }
+
+        window.onload = () => {
+            applyLanguage();
+            loadData();
+        };
 
         async function loadData() {
-            if (!user || !user.sheetId) {
-                alert("Session expired. Please login again.");
-                return;
-            }
+            if (!user || !user.sheetId) return alert("Session expired.");
             
             const tbody = document.getElementById("tableBody");
             const loader = document.getElementById("loader");
             const table = document.getElementById("invTable");
+            const lang = localStorage.getItem("dashboardLang") || "en";
 
             tbody.innerHTML = "";
             loader.classList.remove("hidden");
-            loader.innerText = "Fetching your records...";
             table.classList.add("hidden");
 
             try {
-                // CRITICAL: Added sheetId to the URL parameters
                 const response = await fetch(`${DATA_API_URL}?action=getInvoices&userId=${user.id}&sheetId=${user.sheetId}`);
                 const data = await response.json();
                 
-                // Map data from the 'invoices' sheet columns:
-                // [0]ID, [1]UserID, [2]ClientName, [3]Phone, [4]Date, [5]Subtotal, [6]Tax, [7]Total, [8]Items
                 cachedInvoices = data.map(row => ({
-                    invoiceId: row.invoiceId,     // Based on GAS getInvoices mapping
-                    clientName: row.clientName,
-                    clientPhone: row.clientPhone || "",
-                    date: row.date,
-                    subtotal: row.subtotal || 0,
-                    taxAmount: row.taxAmount || 0,
-                    total: row.total || 0,
-                    items: row.items_json || "[]"
+                    invoiceId: row.invoiceId, clientName: row.clientName,
+                    clientPhone: row.clientPhone || "", date: row.date,
+                    subtotal: row.subtotal || 0, taxAmount: row.taxAmount || 0,
+                    total: row.total || 0, items: row.items_json || "[]"
                 }));
 
                 loader.classList.add("hidden");
@@ -92,76 +130,57 @@
                     tr.innerHTML = `
                         <td>${inv.date}</td>
                         <td><strong>${inv.invoiceId}</strong></td>
-                        <td>${inv.clientName}<br><small>${inv.clientPhone || 'No Phone'}</small></td>
+                        <td>${inv.clientName}<br><small>${inv.clientPhone || i18n[lang].noPhone}</small></td>
                         <td><strong>${parseFloat(inv.total).toFixed(2)}</strong></td>
                         <td>
-                            <button class="btn btn-print" onclick="handlePrint('${inv.invoiceId}')">Print</button>
-                            <button class="btn btn-wa" onclick="handleShare('${inv.invoiceId}', 'wa')">WhatsApp</button>
-                            <button class="btn btn-mail" onclick="handleShare('${inv.invoiceId}', 'mail')">Email</button>
+                            <button class="btn btn-print" onclick="handlePrint('${inv.invoiceId}')">${i18n[lang].btnPrint}</button>
+                            <button class="btn btn-wa" onclick="handleShare('${inv.invoiceId}', 'wa')">${i18n[lang].btnWA}</button>
+                            <button class="btn btn-mail" onclick="handleShare('${inv.invoiceId}', 'mail')">${i18n[lang].btnMail}</button>
                         </td>
                     `;
                     tbody.appendChild(tr);
                 });
             } catch (err) {
-                console.error(err);
-                loader.innerText = "⚠️ Error loading invoices. Check if you have saved any invoices yet.";
+                loader.innerText = "⚠️ Error loading data.";
             }
         }
 
-        // Logic for WhatsApp, Email, and PDF sharing
         async function handleShare(id, platform) {
-            const { jsPDF } = window.jspdf;
             const inv = cachedInvoices.find(i => i.invoiceId === id);
             if (!inv) return;
+            const lang = localStorage.getItem("dashboardLang") || "en";
 
             let items = [];
-            try { items = JSON.parse(inv.items); } catch(e) { items = []; }
+            try { items = JSON.parse(inv.items); } catch(e) {}
             
             let itemText = "";
             items.forEach(item => {
                 itemText += `• ${item.description} (Qty: ${item.qty} x ${item.price}) = ${parseFloat(item.amount).toFixed(2)}\n`;
             });
 
-            const displayDate = inv.date;
-            const fullMessage = `📄 *INVOICE: ${inv.invoiceId}*\n` +
-                                `📅 Date: ${displayDate}\n` +
-                                `👤 Client: ${inv.clientName}\n\n` +
-                                `*Items:*\n${itemText}\n` +
-                                `────────────────\n` +
-                                `Sub-total: ${parseFloat(inv.subtotal).toFixed(2)}\n` +
-                                `Tax: ${parseFloat(inv.taxAmount).toFixed(2)}\n` +
-                                `💰 *Total: ${parseFloat(inv.total).toFixed(2)}*\n\n` +
+            // Use Urdu labels in the message if Urdu is selected
+            const labels = lang === 'ur' ? 
+                { inv: "انوائس", date: "تاریخ", client: "کلائنٹ", items: "اشیاء", total: "کل رقم" } : 
+                { inv: "INVOICE", date: "Date", client: "Client", items: "Items", total: "Total" };
+
+            const fullMessage = `📄 *${labels.inv}: ${inv.invoiceId}*\n` +
+                                `📅 ${labels.date}: ${inv.date}\n` +
+                                `👤 ${labels.client}: ${inv.clientName}\n\n` +
+                                `*${labels.items}:*\n${itemText}\n` +
+                                `💰 *${labels.total}: ${parseFloat(inv.total).toFixed(2)}*\n\n` +
                                 `Regards, *${user.business}*`;
 
-            const encodedMsg = encodeURIComponent(fullMessage);
             if (platform === 'wa') {
                 const cleanPhone = String(inv.clientPhone).replace(/\D/g, ''); 
-                window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodedMsg}`, '_blank');
+                window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(fullMessage)}`, '_blank');
             } else {
-                window.location.href = `mailto:?subject=Invoice ${inv.invoiceId}&body=${encodedMsg}`;
+                window.location.href = `mailto:?subject=Invoice ${inv.invoiceId}&body=${encodeURIComponent(fullMessage)}`;
             }
-
-            // PDF Generation
-            const doc = new jsPDF();
-            doc.text(user.business, 14, 20);
-            doc.setFontSize(10);
-            doc.text(`Invoice: ${inv.invoiceId} | Date: ${displayDate}`, 14, 30);
-            doc.text(`Client: ${inv.clientName}`, 14, 35);
-
-            const tableData = items.map(item => [item.description, item.qty, item.price, item.amount]);
-            doc.autoTable({ startY: 45, head: [['Description', 'Qty', 'Price', 'Amount']], body: tableData });
-            doc.save(`${inv.invoiceId}.pdf`);
-        }
-
-        function filterTable() {
-            const input = document.getElementById("searchBox").value.toUpperCase();
-            document.querySelectorAll("#tableBody tr").forEach(row => {
-                row.style.display = row.innerText.toUpperCase().includes(input) ? "" : "none";
-            });
         }
 
         function handlePrint(id) {
             const inv = cachedInvoices.find(i => i.invoiceId === id);
+            const lang = localStorage.getItem("dashboardLang") || "en";
             let items = [];
             try { items = JSON.parse(inv.items); } catch(e) {}
             
@@ -170,9 +189,35 @@
             items.forEach(i => { 
                 rows += `<tr><td>${i.description}</td><td>${i.qty}</td><td>${i.price}</td><td align="right">${parseFloat(i.amount).toFixed(2)}</td></tr>`; 
             });
+
+            const dir = lang === 'ur' ? 'rtl' : 'ltr';
+            const font = lang === 'ur' ? "'Noto Nastaliq Urdu', serif" : 'sans-serif';
             
-            printWin.document.write(`<html><head><style>body{font-family:sans-serif;padding:20px} table{width:100%;border-collapse:collapse} th,td{border:1px solid #ddd;padding:8px} .total-area{text-align:right;margin-top:20px}</style></head><body><h2>${user.business}</h2><p>Invoice: ${inv.invoiceId} | Date: ${inv.date}</p><p>Client: ${inv.clientName}</p><table><thead><tr><th>Description</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table><div class="total-area"><p>Sub-total: ${parseFloat(inv.subtotal).toFixed(2)}</p><p>Tax: ${parseFloat(inv.taxAmount).toFixed(2)}</p><h3>Grand Total: ${parseFloat(inv.total).toFixed(2)}</h3></div><script>window.onload=function(){window.print();window.close();}<\/script></body></html>`);
+            printWin.document.write(`<html><head><style>
+                @import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu&display=swap');
+                body{font-family:${font}; padding:20px; direction:${dir}} 
+                table{width:100%; border-collapse:collapse} 
+                th,td{border:1px solid #ddd; padding:8px; text-align:${lang === 'ur' ? 'right' : 'left'}} 
+                .total-area{text-align:${lang === 'ur' ? 'left' : 'right'}; margin-top:20px}
+            </style></head><body>
+                <h2>${user.business}</h2>
+                <p>${i18n[lang].thInvId}: ${inv.invoiceId} | ${i18n[lang].thDate}: ${inv.date}</p>
+                <p>${i18n[lang].thClient}: ${inv.clientName}</p>
+                <table><thead><tr><th>${i18n[lang].thDesc || 'Description'}</th><th>${i18n[lang].thQty}</th><th>${i18n[lang].thPrice}</th><th>${i18n[lang].thTotal}</th></tr></thead>
+                <tbody>${rows}</tbody></table>
+                <div class="total-area">
+                    <h3>${i18n[lang].thTotal}: ${parseFloat(inv.total).toFixed(2)}</h3>
+                </div>
+                <script>window.onload=function(){window.print();window.close();}<\/script>
+            </body></html>`);
             printWin.document.close();
+        }
+
+        function filterTable() {
+            const input = document.getElementById("searchBox").value.toUpperCase();
+            document.querySelectorAll("#tableBody tr").forEach(row => {
+                row.style.display = row.innerText.toUpperCase().includes(input) ? "" : "none";
+            });
         }
     </script>
 </body>
