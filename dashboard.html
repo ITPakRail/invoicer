@@ -66,7 +66,7 @@
             aside { position: fixed; top: 60px; left: -250px; height: calc(100vh - 100px); width: 250px; }
             #main-dashboard.sidebar-open aside { left: 0; }
             #main-dashboard.sidebar-open main { opacity: 0.3; pointer-events: none; }
-            .user-info span:not(.user-badge) { display: none; } /* Hide "Welcome Name" to save space */
+            .user-info span:not(.user-badge) { display: none; }
         }
     </style>
 </head>
@@ -135,6 +135,12 @@
                 <li onclick="handleNav('view-clients')" data-key="navClientList">📋 Client List</li>
             </ul>
 
+            <li onclick="toggleMenu('accounts-menu')" data-key="navAccounts">💳 Accounts ▾</li>
+            <ul id="accounts-menu" class="submenu">
+                <li onclick="handleNav('add-payment')" data-key="navAddPay">📥 Add Payments</li>
+                <li onclick="handleNav('client-statement')" data-key="navStatement">📜 Client Statement</li>
+            </ul>
+
             <li onclick="toggleMenu('settings-menu')" data-key="navSettings">⚙️ Settings ▾</li>
             <ul id="settings-menu" class="submenu">
                 <li onclick="handleNav('biz-settings')" data-key="navBizSet">🏢 Business Setting</li>
@@ -188,7 +194,6 @@
 
     document.getElementById('year').innerText = new Date().getFullYear();
 
-    // SIDEBAR TOGGLE LOGIC
     function toggleSidebar() {
         const dashboard = document.getElementById('main-dashboard');
         if (window.innerWidth <= 768) {
@@ -198,7 +203,6 @@
         }
     }
 
-    // NEW NAVIGATION HANDLER (Closes menu on mobile after selection)
     function handleNav(id) {
         if (window.innerWidth <= 768) {
             document.getElementById('main-dashboard').classList.remove('sidebar-open');
@@ -208,7 +212,6 @@
         else showSection(id);
     }
 
-    // LANGUAGE DICTIONARY
     const dashboardTranslations = {
         en: {
             idLabel: "ID", welcome: "Welcome", logout: "Logout",
@@ -216,6 +219,8 @@
             navView: "📄 View All Invoices", navEdit: "✏️ Edit or Delete",
             navReports: "📊 Reports", navClients: "👥 Clients ▾",
             navAddClient: "👤 Add Client", navClientList: "📋 Client List",
+            navAccounts: "💳 Accounts ▾", navAddPay: "📥 Add Payments",
+            navStatement: "📜 Client Statement",
             navSettings: "⚙️ Settings ▾", navBizSet: "🏢 Business Setting",
             navTaxSet: "💰 Tax Setting", navCurrSet: "💱 Set Currency",
             navChangePwd: "Change Password", overview: "Business Management Overview",
@@ -229,6 +234,8 @@
             navView: "📄 تمام انوائسز", navEdit: "✏️ ترمیم یا حذف",
             navReports: "📊 رپورٹس", navClients: "👥 کلائنٹس ▾",
             navAddClient: "👤 کلائنٹ شامل کریں", navClientList: "📋 کلائنٹ کی فہرست",
+            navAccounts: "💳 اکاؤنٹس ▾", navAddPay: "📥 رقم وصول کریں",
+            navStatement: "📜 کھاتہ کی تفصیل",
             navSettings: "⚙️ سیٹنگز ▾", navBizSet: "🏢 بزنس سیٹنگ",
             navTaxSet: "💰 ٹیکس سیٹنگ", navCurrSet: "💱 کرنسی سیٹ کریں",
             navChangePwd: "پاس ورڈ تبدیل کریں", overview: "کاروباری نظم و ضبط کا جائزہ",
@@ -345,7 +352,19 @@
     function showSection(id) {
         document.getElementById('welcome-msg').classList.add('hidden');
         document.getElementById('module-container').classList.remove('hidden');
-        const routes = { 'create': 'invoice-form.html', 'view-all': 'view-all.html', 'update': 'update.html', 'report': 'reports.html', 'add-client': 'add-client.html', 'view-clients': 'view-clients.html', 'biz-settings': 'business-settings.html', 'tax-settings': 'tax-settings.html', 'currency-settings': 'currency-settings.html' };
+        const routes = { 
+            'create': 'invoice-form.html', 
+            'view-all': 'view-all.html', 
+            'update': 'update.html', 
+            'report': 'reports.html', 
+            'add-client': 'add-client.html', 
+            'view-clients': 'view-clients.html', 
+            'add-payment': 'record-payment.html',
+            'client-statement': 'client-statement.html',
+            'biz-settings': 'business-settings.html', 
+            'tax-settings': 'tax-settings.html', 
+            'currency-settings': 'currency-settings.html' 
+        };
         document.getElementById('content-frame').src = routes[id] || "";
     }
 
