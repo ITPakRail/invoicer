@@ -62,8 +62,7 @@
                 <th data-key="thBal">Balance</th>
             </tr>
         </thead>
-        <tbody id="ledgerBody">
-            </tbody>
+        <tbody id="ledgerBody"></tbody>
     </table>
 </div>
 
@@ -86,7 +85,9 @@
 
     window.onload = async () => {
         applyLanguage();
-        await populateClients();
+        if (user && user.sheetId) {
+            await populateClients();
+        }
     };
 
     function applyLanguage() {
@@ -104,16 +105,21 @@
             const response = await fetch(`${API_URL}?action=getClients&sheetId=${user.sheetId}`);
             const clients = await response.json();
             const select = document.getElementById("clientSelect");
+            
             clients.forEach(c => {
-                let opt = document.createElement("option");
-                opt.value = c.Name;
-                opt.innerText = c.Name;
-                select.appendChild(opt);
+                // IMPORTANT: Your code.gs uses 'Client_Name' now
+                let name = c.Client_Name; 
+                if (name) {
+                    let opt = document.createElement("option");
+                    opt.value = name;
+                    opt.innerText = name;
+                    select.appendChild(opt);
+                }
             });
-        } catch(e) { console.error("Client Load Error"); }
+        } catch(e) { console.error("Client Load Error:", e); }
     }
 
-   async function loadLedger() {
+    async function loadLedger() {
         const clientName = document.getElementById("clientSelect").value;
         const tbody = document.getElementById("ledgerBody");
         if(!clientName) return;
@@ -124,18 +130,19 @@
             const response = await fetch(`${API_URL}?action=getLedger&sheetId=${user.sheetId}`);
             const allLedgerData = await response.json();
             
-            // Filter by selected client
-            const filtered = allLedgerData.filter(row => row.Client_Name === clientName);
+            // Filter by selected client (trimmed to avoid space errors)
+            const filtered = allLedgerData.filter(row => 
+                String(row.Client_Name).trim() === String(clientName).trim()
+            );
             
             tbody.innerHTML = "";
             filtered.forEach(row => {
                 const tr = document.createElement("tr");
-                // Format date if it comes back as ISO string
-                const dateStr = row.Date ? new Date(row.Date).toLocaleDateString() : '---';
+                const dateStr = row.Date || '---';
                 
                 tr.innerHTML = `
                     <td>${dateStr}</td>
-                    <td>${row.Description} (Inv: ${row.Invoice_ID})</td>
+                    <td>${row.Description || 'Entry'} (Inv: ${row.Invoice_ID || 'N/A'})</td>
                     <td class="dr-text">${parseFloat(row.Debit_Amount || 0).toFixed(2)}</td>
                     <td class="cr-text">${parseFloat(row.Credit_Amount || 0).toFixed(2)}</td>
                     <td class="bal-text">${parseFloat(row.Balance || 0).toFixed(2)}</td>
@@ -147,7 +154,8 @@
                 tbody.innerHTML = "<tr><td colspan='5' style='text-align:center;'>No records found for this client.</td></tr>";
             }
         } catch (e) {
-            tbody.innerHTML = "<tr><td colspan='5'>Error loading ledger.</td></tr>";
+            console.error("Ledger Fetch Error:", e);
+            tbody.innerHTML = "<tr><td colspan='5' style='color:red; text-align:center;'>Error loading ledger. Check your internet or Sheet structure.</td></tr>";
         }
     }
 </script>
