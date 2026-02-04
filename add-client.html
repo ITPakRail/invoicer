@@ -5,13 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Add Client</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap');
+        
         :root { --primary: #2c3e50; --accent: #3498db; --success: #27ae60; }
-        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; padding: 20px; margin: 0; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; padding: 20px; margin: 0; transition: all 0.3s; }
+        
+        /* RTL & Urdu Styles */
+        body.rtl-mode { direction: rtl; font-family: 'Noto Nastaliq Urdu', serif; }
+        body.rtl-mode .card { text-align: right; }
+        body.rtl-mode input, body.rtl-mode textarea { text-align: right; font-family: 'Noto Nastaliq Urdu', serif; }
+
         .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
         h2 { color: var(--primary); margin-top: 0; border-bottom: 2px solid #eee; padding-bottom: 10px; }
         .form-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
-        input, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 14px; }
+        input, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 14px; outline: none; }
+        input:focus { border-color: var(--accent); }
         textarea { resize: vertical; height: 80px; }
         .btn-save { width: 100%; padding: 12px; background: var(--success); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; transition: 0.3s; }
         .btn-save:hover { background: #219150; }
@@ -22,38 +31,104 @@
 <body>
 
 <div class="card">
-    <h2>👤 Add New Client</h2>
+    <h2 data-key="title">👤 Add New Client</h2>
     
     <div class="form-group">
-        <label>Client Name *</label>
-        <input type="text" id="clientName" placeholder="Enter client or business name">
+        <label data-key="lblClient">Client Name *</label>
+        <input type="text" id="clientName" class="urdu-input" placeholder="Enter client or business name" data-placeholder="pClient">
     </div>
 
     <div class="form-group">
-        <label>Phone Number *</label>
-        <input type="text" id="phone" placeholder="e.g. +123456789">
+        <label data-key="lblPhone">Phone Number *</label>
+        <input type="text" id="phone" placeholder="e.g. +923001234567" data-placeholder="pPhone">
     </div>
 
     <div class="form-group">
-        <label>Email Address</label>
-        <input type="email" id="email" placeholder="client@example.com">
+        <label data-key="lblEmail">Email Address</label>
+        <input type="email" id="email" placeholder="client@example.com" data-placeholder="pEmail">
     </div>
 
     <div class="form-group">
-        <label>Address</label>
-        <textarea id="address" placeholder="Enter physical or billing address"></textarea>
+        <label data-key="lblAddress">Address</label>
+        <textarea id="address" class="urdu-input" placeholder="Enter physical or billing address" data-placeholder="pAddress"></textarea>
     </div>
 
-    <button id="saveBtn" class="btn-save" onclick="saveClient()">Save Client</button>
+    <button id="saveBtn" class="btn-save" onclick="saveClient()" data-key="btnSave">Save Client</button>
     
     <div id="status-msg"></div>
 </div>
 
 <script>
-    // URL to your GAS Deployment
-  const API_URL = "https://script.google.com/macros/s/AKfycbwpyyuTtbSv_2udttbXog8oUfq_vgFvr-y7DggVO-WXYkR4APnpB_0BS6TpSZLdnBrN/exec";
+    const API_URL = "https://script.google.com/macros/s/AKfycbwpyyuTtbSv_2udttbXog8oUfq_vgFvr-y7DggVO-WXYkR4APnpB_0BS6TpSZLdnBrN/exec";
+
+    const i18n = {
+        en: {
+            title: "👤 Add New Client", lblClient: "Client Name *", lblPhone: "Phone Number *",
+            lblEmail: "Email Address", lblAddress: "Address", btnSave: "Save Client",
+            pClient: "Enter client or business name", pPhone: "e.g. +923001234567",
+            pEmail: "client@example.com", pAddress: "Enter physical or billing address",
+            saving: "Saving...", success: "✅ Client added successfully!", error: "❌ Network Error.",
+            alertFields: "Client Name and Phone are required."
+        },
+        ur: {
+            title: "👤 نیا کلائنٹ شامل کریں", lblClient: "کلائنٹ کا نام *", lblPhone: "فون نمبر *",
+            lblEmail: "ای میل ایڈریس", lblAddress: "پتہ", btnSave: "کلائنٹ محفوظ کریں",
+            pClient: "کلائنٹ یا کاروبار کا نام درج کریں", pPhone: "مثلاً 923001234567",
+            pEmail: "client@example.com", pAddress: "کلائنٹ کا پتہ درج کریں",
+            saving: "محفوظ ہو رہا ہے...", success: "✅ کلائنٹ کامیابی سے شامل ہو گیا!", error: "❌ نیٹ ورک کی خرابی۔",
+            alertFields: "کلائنٹ کا نام اور فون نمبر ضروری ہے۔"
+        }
+    };
+
+    // Phonetic Keyboard Mapping
+    const urduMap = {
+        'a': 'ا', 'b': 'ب', 'c': 'چ', 'd': 'د', 'e': 'ع', 'f': 'ف', 'g': 'گ', 'h': 'ہ', 'i': 'ی', 'j': 'ج',
+        'k': 'ک', 'l': 'ل', 'm': 'م', 'n': 'ن', 'o': 'ہ', 'p': 'پ', 'q': 'ق', 'r': 'ر', 's': 'س', 't': 'ت',
+        'u': 'و', 'v': 'ط', 'w': 'و', 'x': 'ش', 'y': 'ے', 'z': 'ز', 'A': 'آ', 'S': 'ص', 'D': 'ڈ', 'T': 'ٹ'
+    };
+
+    function applyLanguage() {
+        const lang = localStorage.getItem("dashboardLang") || "en";
+        const t = i18n[lang];
+        
+        document.querySelectorAll('[data-key]').forEach(el => {
+            const key = el.getAttribute('data-key');
+            if (t[key]) el.innerText = t[key];
+        });
+
+        document.querySelectorAll('[data-placeholder]').forEach(el => {
+            const key = el.getAttribute('data-placeholder');
+            if (t[key]) el.placeholder = t[key];
+        });
+
+        if (lang === 'ur') {
+            document.body.classList.add('rtl-mode');
+        } else {
+            document.body.classList.remove('rtl-mode');
+        }
+    }
+
+    // Urdu Typing Logic
+    document.addEventListener('keypress', (e) => {
+        const lang = localStorage.getItem("dashboardLang") || "en";
+        if (lang === 'ur' && e.target.classList.contains('urdu-input')) {
+            if (urduMap[e.key]) {
+                e.preventDefault();
+                const start = e.target.selectionStart;
+                const end = e.target.selectionEnd;
+                const text = e.target.value;
+                e.target.value = text.substring(0, start) + urduMap[e.key] + text.substring(end);
+                e.target.selectionStart = e.target.selectionEnd = start + 1;
+            }
+        }
+    });
+
+    window.onload = applyLanguage;
 
     async function saveClient() {
+        const lang = localStorage.getItem("dashboardLang") || "en";
+        const t = i18n[lang];
+        
         const name = document.getElementById("clientName").value.trim();
         const phone = document.getElementById("phone").value.trim();
         const email = document.getElementById("email").value.trim();
@@ -62,23 +137,20 @@
         const saveBtn = document.getElementById("saveBtn");
 
         if (!name || !phone) {
-            alert("Client Name and Phone are required.");
+            alert(t.alertFields);
             return;
         }
 
         const user = JSON.parse(localStorage.getItem("user"));
-        if (!user || !user.sheetId) {
-            alert("Session expired. Please login again.");
-            return;
-        }
+        if (!user || !user.sheetId) return alert("Session expired.");
 
         saveBtn.disabled = true;
-        saveBtn.innerText = "Saving...";
+        saveBtn.innerText = t.saving;
         statusMsg.innerText = "";
 
         const payload = {
             action: "saveClient",
-            sheetId: user.sheetId, // Critical for multi-tenant
+            sheetId: user.sheetId,
             userId: user.id,
             clientId: "CLI-" + Math.floor(Math.random() * 9000 + 1000),
             clientName: name,
@@ -91,27 +163,21 @@
         try {
             await fetch(API_URL, {
                 method: "POST",
-                mode: "no-cors", // Standard for GAS POST
+                mode: "no-cors",
                 body: JSON.stringify(payload)
             });
 
-            // Since no-cors doesn't return text, we assume success if no error is thrown
             statusMsg.style.color = "green";
-            statusMsg.innerText = "✅ Client added successfully!";
+            statusMsg.innerText = t.success;
             
-            // Clear form
-            document.getElementById("clientName").value = "";
-            document.getElementById("phone").value = "";
-            document.getElementById("email").value = "";
-            document.getElementById("address").value = "";
+            document.querySelectorAll('input, textarea').forEach(el => el.value = "");
 
         } catch (err) {
-            console.error("Save Error:", err);
             statusMsg.style.color = "red";
-            statusMsg.innerText = "❌ Network Error.";
+            statusMsg.innerText = t.error;
         } finally {
             saveBtn.disabled = false;
-            saveBtn.innerText = "Save Client";
+            saveBtn.innerText = t.btnSave;
         }
     }
 </script>
