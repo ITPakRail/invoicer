@@ -60,91 +60,103 @@
         const user = JSON.parse(localStorage.getItem("user"));
         let cachedInvoices = [];
 
-        const i18n = {
-            en: {
-                searchPlace: "🔍 Search by Client Name or ID...", btnRefresh: "🔄 Refresh",
-                fetchMsg: "Fetching your records...", thDate: "Date", thInvId: "Invoice ID",
-                thClient: "Client Name", thTotal: "Grand Total", thActions: "Actions",
-                btnPrint: "Print", btnWA: "WhatsApp", btnMail: "Email", noPhone: "No Phone"
-            },
-            ur: {
-                searchPlace: "🔍 کلائنٹ کا نام یا آئی ڈی تلاش کریں...", btnRefresh: "🔄 ریفریش",
-                fetchMsg: "ریکارڈ حاصل کیا جا رہا ہے...", thDate: "تاریخ", thInvId: "انوائس نمبر",
-                thClient: "کلائنٹ کا نام", thTotal: "کل رقم", thActions: "ایکشنز",
-                btnPrint: "پرنٹ", btnWA: "واٹس ایپ", btnMail: "ای میل", noPhone: "فون نمبر موجود نہیں"
-            }
-        };
+        // Comprehensive Dictionary
+    const i18n = {
+        en: {
+            searchPlace: "🔍 Search by Client Name or ID...", btnRefresh: "🔄 Refresh",
+            fetchMsg: "Fetching your records...", thDate: "Date", thInvId: "Invoice ID",
+            thClient: "Client Name", thTotal: "Grand Total", thActions: "Actions",
+            btnPrint: "Print", btnWA: "WhatsApp", btnMail: "Email", noPhone: "No Phone",
+            thDesc: "Description", thQty: "Qty", thPrice: "Price"
+        },
+        ur: {
+            searchPlace: "🔍 کلائنٹ کا نام یا آئی ڈی تلاش کریں...", btnRefresh: "🔄 ریفریش",
+            fetchMsg: "ریکارڈ حاصل کیا جا رہا ہے...", thDate: "تاریخ", thInvId: "انوائس نمبر",
+            thClient: "کلائنٹ کا نام", thTotal: "کل رقم", thActions: "ایکشنز",
+            btnPrint: "پرنٹ", btnWA: "واٹس ایپ", btnMail: "ای میل", noPhone: "فون نمبر نہیں ہے",
+            thDesc: "تفصیل", thQty: "تعداد", thPrice: "قیمت"
+        }
+    };
 
-        function applyLanguage() {
-            const lang = localStorage.getItem("dashboardLang") || "en";
-            const t = i18n[lang];
+    window.onload = () => {
+        applyLanguage();
+        loadData();
+    };
+
+    function applyLanguage() {
+        const lang = localStorage.getItem("dashboardLang") || "en";
+        const t = i18n[lang];
+        
+        // Translate all elements with data-key
+        document.querySelectorAll('[data-key]').forEach(el => {
+            const key = el.getAttribute('data-key');
+            if (t[key]) el.innerText = t[key];
+        });
+
+        // Translate Search Placeholder
+        const search = document.getElementById("searchBox");
+        if (search && t.searchPlace) search.placeholder = t.searchPlace;
+
+        // Apply RTL/LTR
+        if (lang === 'ur') {
+            document.body.classList.add('rtl-mode');
+            document.body.style.direction = "rtl";
+        } else {
+            document.body.classList.remove('rtl-mode');
+            document.body.style.direction = "ltr";
+        }
+    }
+
+    async function loadData() {
+        if (!user || !user.sheetId) return alert("Session expired.");
+        
+        const tbody = document.getElementById("tableBody");
+        const loader = document.getElementById("loader");
+        const table = document.getElementById("invTable");
+        const lang = localStorage.getItem("dashboardLang") || "en";
+        const t = i18n[lang];
+
+        tbody.innerHTML = "";
+        loader.classList.remove("hidden");
+        table.classList.add("hidden");
+
+        try {
+            const response = await fetch(`${DATA_API_URL}?action=getInvoices&userId=${user.id}&sheetId=${user.sheetId}`);
+            const data = await response.json();
             
-            document.querySelectorAll('[data-key]').forEach(el => {
-                const key = el.getAttribute('data-key');
-                if (t[key]) el.innerText = t[key];
+            cachedInvoices = data.map(row => ({
+                invoiceId: row.invoiceId, clientName: row.clientName,
+                clientPhone: row.clientPhone || "", date: row.date,
+                subtotal: row.subtotal || 0, taxAmount: row.taxAmount || 0,
+                total: row.total || 0, items: row.items_json || "[]"
+            }));
+
+            loader.classList.add("hidden");
+            table.classList.remove("hidden");
+
+            cachedInvoices.forEach(inv => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td>${inv.date}</td>
+                    <td><strong>${inv.invoiceId}</strong></td>
+                    <td>${inv.clientName}<br><small>${inv.clientPhone || t.noPhone}</small></td>
+                    <td><strong>${parseFloat(inv.total).toFixed(2)}</strong></td>
+                    <td>
+                        <button class="btn btn-print" onclick="handlePrint('${inv.invoiceId}')">${t.btnPrint}</button>
+                        <button class="btn btn-wa" onclick="handleShare('${inv.invoiceId}', 'wa')">${t.btnWA}</button>
+                        <button class="btn btn-mail" onclick="handleShare('${inv.invoiceId}', 'mail')">${t.btnMail}</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
             });
-
-            const search = document.getElementById("searchBox");
-            if (t.searchPlace) search.placeholder = t.searchPlace;
-
-            if (lang === 'ur') {
-                document.body.classList.add('rtl-mode');
-            } else {
-                document.body.classList.remove('rtl-mode');
-            }
-        }
-
-        window.onload = () => {
-            applyLanguage();
-            loadData();
-        };
-
-        async function loadData() {
-            if (!user || !user.sheetId) return alert("Session expired.");
             
-            const tbody = document.getElementById("tableBody");
-            const loader = document.getElementById("loader");
-            const table = document.getElementById("invTable");
-            const lang = localStorage.getItem("dashboardLang") || "en";
+            // Re-apply language to headers just in case
+            applyLanguage();
 
-            tbody.innerHTML = "";
-            loader.classList.remove("hidden");
-            table.classList.add("hidden");
-
-            try {
-                const response = await fetch(`${DATA_API_URL}?action=getInvoices&userId=${user.id}&sheetId=${user.sheetId}`);
-                const data = await response.json();
-                
-                cachedInvoices = data.map(row => ({
-                    invoiceId: row.invoiceId, clientName: row.clientName,
-                    clientPhone: row.clientPhone || "", date: row.date,
-                    subtotal: row.subtotal || 0, taxAmount: row.taxAmount || 0,
-                    total: row.total || 0, items: row.items_json || "[]"
-                }));
-
-                loader.classList.add("hidden");
-                table.classList.remove("hidden");
-
-                cachedInvoices.forEach(inv => {
-                    const tr = document.createElement("tr");
-                    tr.innerHTML = `
-                        <td>${inv.date}</td>
-                        <td><strong>${inv.invoiceId}</strong></td>
-                        <td>${inv.clientName}<br><small>${inv.clientPhone || i18n[lang].noPhone}</small></td>
-                        <td><strong>${parseFloat(inv.total).toFixed(2)}</strong></td>
-                        <td>
-                            <button class="btn btn-print" onclick="handlePrint('${inv.invoiceId}')">${i18n[lang].btnPrint}</button>
-                            <button class="btn btn-wa" onclick="handleShare('${inv.invoiceId}', 'wa')">${i18n[lang].btnWA}</button>
-                            <button class="btn btn-mail" onclick="handleShare('${inv.invoiceId}', 'mail')">${i18n[lang].btnMail}</button>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-            } catch (err) {
-                loader.innerText = "⚠️ Error loading data.";
-            }
+        } catch (err) {
+            loader.innerText = "⚠️ Error loading data.";
         }
-
+    }
         async function handleShare(id, platform) {
             const inv = cachedInvoices.find(i => i.invoiceId === id);
             if (!inv) return;
