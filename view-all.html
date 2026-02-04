@@ -7,42 +7,52 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap');
-        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #fff; color: #333; }
+
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #fff; color: #333; transition: all 0.3s; }
         body.rtl-mode { direction: rtl; font-family: 'Noto Nastaliq Urdu', serif; }
+        body.rtl-mode th { text-align: right; }
+        body.rtl-mode #searchBox { text-align: right; }
+
         .header-area { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 10px; }
-        #searchBox { flex-grow: 1; padding: 12px; border: 1px solid #ddd; border-radius: 5px; }
-        table { width: 100%; border-collapse: collapse; }
+        #searchBox { flex-grow: 1; padding: 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; outline: none; }
+        
+        table { width: 100%; border-collapse: collapse; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
         th { background: #2c3e50; color: white; padding: 15px; text-align: left; }
         td { padding: 12px; border-bottom: 1px solid #eee; }
-        .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+        
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
         .status-paid { background: #d4edda; color: #155724; }
         .status-partial { background: #fff3cd; color: #856404; }
         .status-unpaid { background: #f8d7da; color: #721c24; }
-        .btn { padding: 8px 14px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-right: 4px; font-size: 12px; }
+
+        .btn { padding: 8px 14px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-right: 4px; font-size: 12px; transition: 0.3s; }
         .btn-print { background: #3498db; color: white; }
         .btn-wa { background: #25D366; color: white; }
         .btn-mail { background: #e74c3c; color: white; }
+        .btn:hover { opacity: 0.8; }
+        
+        #loader { text-align: center; padding: 50px; }
         .hidden { display: none; }
     </style>
 </head>
 <body>
 
     <div class="header-area">
-        <input type="text" id="searchBox" placeholder="🔍 Search..." onkeyup="filterTable()">
-        <button class="btn" style="background:#eee;" onclick="loadData()">🔄 Refresh</button>
+        <input type="text" id="searchBox" placeholder="🔍 Search..." data-placeholder="searchPlace" onkeyup="filterTable()">
+        <button class="btn" style="background:#eee; color:#333;" onclick="loadData()" data-key="btnRefresh">🔄 Refresh</button>
     </div>
 
-    <div id="loader">Fetching records...</div>
+    <div id="loader" data-key="fetchMsg">Fetching your records...</div>
 
     <table id="invTable" class="hidden">
         <thead>
             <tr>
-                <th>Date</th>
-                <th>Invoice ID</th>
-                <th>Client Name</th>
-                <th>Grand Total</th>
-                <th>Status</th>
-                <th>Actions</th>
+                <th data-key="thDate">Date</th>
+                <th data-key="thInvId">Invoice ID</th>
+                <th data-key="thClient">Client Name</th>
+                <th data-key="thTotal">Grand Total</th>
+                <th data-key="thStatus">Status</th>
+                <th data-key="thActions">Actions</th>
             </tr>
         </thead>
         <tbody id="tableBody"></tbody>
@@ -53,17 +63,50 @@
         const user = JSON.parse(localStorage.getItem("user"));
         let cachedInvoices = [];
 
-        window.onload = () => { loadData(); };
+        const i18n = {
+            en: {
+                searchPlace: "🔍 Search by Client Name or ID...", btnRefresh: "🔄 Refresh",
+                fetchMsg: "Fetching your records...", thDate: "Date", thInvId: "Invoice ID",
+                thClient: "Client Name", thTotal: "Grand Total", thActions: "Actions",
+                thStatus: "Status", thPaid: "Received", thBal: "Balance",
+                btnPrint: "PDF", btnWA: "WhatsApp", btnMail: "Email", noPhone: "No Phone",
+                thDesc: "Description", thQty: "Qty", thPrice: "Price"
+            },
+            ur: {
+                searchPlace: "🔍 تلاش کریں...", btnRefresh: "🔄 ریفریش",
+                fetchMsg: "ریکارڈ حاصل کیا جا رہا ہے...", thDate: "تاریخ", thInvId: "انوائس آئی ڈی",
+                thClient: "کلائنٹ کا نام", thTotal: "کل رقم", thActions: "ایکشنز",
+                thStatus: "حالت", thPaid: "وصول شدہ", thBal: "بقایا",
+                btnPrint: "پی ڈی ایف", btnWA: "واٹس ایپ", btnMail: "ای میل", noPhone: "فون نمبر نہیں ہے",
+                thDesc: "تفصیل", thQty: "تعداد", thPrice: "قیمت"
+            }
+        };
+
+        window.onload = () => { applyLanguage(); loadData(); };
+
+        function applyLanguage() {
+            const lang = localStorage.getItem("dashboardLang") || "en";
+            const t = i18n[lang];
+            document.querySelectorAll('[data-key]').forEach(el => {
+                const key = el.getAttribute('data-key');
+                if (t[key]) el.innerText = t[key];
+            });
+            const search = document.getElementById("searchBox");
+            if (search && t.searchPlace) search.placeholder = t.searchPlace;
+            document.body.classList.toggle('rtl-mode', lang === 'ur');
+        }
 
         async function loadData() {
             if (!user || !user.sheetId) return;
             const tbody = document.getElementById("tableBody");
             tbody.innerHTML = "";
+            document.getElementById("loader").classList.remove("hidden");
+            document.getElementById("invTable").classList.add("hidden");
+
             try {
                 const response = await fetch(`${DATA_API_URL}?action=getInvoices&userId=${user.id}&sheetId=${user.sheetId}`);
                 const data = await response.json();
                 
-                // FIXED MAPPING: Matches your GS output exactly
                 cachedInvoices = data.map(row => ({
                     invoiceId: row.Invoice_ID, 
                     clientName: row.Client_Name,
@@ -79,49 +122,62 @@
                 document.getElementById("loader").classList.add("hidden");
                 document.getElementById("invTable").classList.remove("hidden");
 
+                const lang = localStorage.getItem("dashboardLang") || "en";
                 cachedInvoices.forEach(inv => {
                     const statusClass = `status-${inv.status.toLowerCase()}`;
                     const tr = document.createElement("tr");
                     tr.innerHTML = `
                         <td>${inv.date}</td>
                         <td><strong>${inv.invoiceId}</strong></td>
-                        <td>${inv.clientName}</td>
+                        <td>${inv.clientName}<br><small>${inv.clientPhone || i18n[lang].noPhone}</small></td>
                         <td>
                             <strong>${parseFloat(inv.total).toFixed(2)}</strong><br>
-                            <small style="color:#e74c3c">Balance: ${parseFloat(inv.balanceAmount).toFixed(2)}</small>
+                            <small style="color:#e74c3c">${i18n[lang].thBal}: ${parseFloat(inv.balanceAmount).toFixed(2)}</small>
                         </td>
                         <td><span class="badge ${statusClass}">${inv.status}</span></td>
                         <td>
-                            <button class="btn btn-print" onclick="generatePDF('${inv.invoiceId}')">PDF</button>
-                            <button class="btn btn-wa" onclick="handleShare('${inv.invoiceId}', 'wa')">WhatsApp</button>
-                            <button class="btn btn-mail" onclick="handleShare('${inv.invoiceId}', 'mail')">Email</button>
+                            <button class="btn btn-print" onclick="generatePDF('${inv.invoiceId}')">${i18n[lang].btnPrint}</button>
+                            <button class="btn btn-wa" onclick="handleShare('${inv.invoiceId}', 'wa')">${i18n[lang].btnWA}</button>
+                            <button class="btn btn-mail" onclick="handleShare('${inv.invoiceId}', 'mail')">${i18n[lang].btnMail}</button>
                         </td>
                     `;
                     tbody.appendChild(tr);
                 });
-            } catch (err) { document.getElementById("loader").innerText = "⚠️ Error."; }
+            } catch (err) { document.getElementById("loader").innerText = "⚠️ Error loading data."; }
         }
 
         function generatePDF(id) {
             const inv = cachedInvoices.find(i => i.invoiceId === id);
             if (!inv) return;
+            const lang = localStorage.getItem("dashboardLang") || "en";
+            const t = i18n[lang];
             let items = JSON.parse(inv.items);
             let rows = "";
             items.forEach(i => { 
-                rows += `<tr><td>${i.description}</td><td>${i.qty}</td><td>${i.price}</td><td align="right">${i.amount}</td></tr>`; 
+                rows += `<tr><td>${i.description}</td><td>${i.qty}</td><td>${i.price}</td><td align="right">${parseFloat(i.amount).toFixed(2)}</td></tr>`; 
             });
+
+            const dir = lang === 'ur' ? 'rtl' : 'ltr';
+            const align = lang === 'ur' ? 'right' : 'left';
+
             const printWin = window.open('', '_blank');
-            printWin.document.write(`<html><body>
+            printWin.document.write(`<html><head><style>
+                @import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu&display=swap');
+                body{font-family: 'Segoe UI', 'Noto Nastaliq Urdu', serif; padding:40px; direction:${dir}} 
+                table{width:100%; border-collapse:collapse; margin-top:20px} 
+                th,td{border:1px solid #ddd; padding:10px; text-align:${align}} 
+                th{background:#f4f4f4}
+            </style></head><body>
                 <h2>${user.business}</h2>
-                <p>Invoice: ${inv.invoiceId} | Date: ${inv.date}</p>
-                <p>Client: ${inv.clientName}</p>
-                <table border="1" style="width:100%; border-collapse:collapse;">
-                    <thead><tr><th>Desc</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
-                    <tbody>${rows}</tbody>
-                </table>
-                <p>Total: ${inv.total}</p>
-                <p>Paid: ${inv.paidAmount}</p>
-                <p><b>Balance: ${inv.balanceAmount}</b></p>
+                <p>${t.thInvId}: ${inv.invoiceId} | ${t.thDate}: ${inv.date}</p>
+                <p><strong>${t.thClient}:</strong> ${inv.clientName}</p>
+                <table><thead><tr><th>${t.thDesc}</th><th>${t.thQty}</th><th>${t.thPrice}</th><th>${t.thTotal}</th></tr></thead>
+                <tbody>${rows}</tbody></table>
+                <div style="margin-top:20px; text-align:${lang === 'ur' ? 'left' : 'right'}">
+                    <p>${t.thTotal}: ${parseFloat(inv.total).toFixed(2)}</p>
+                    <p>${t.thPaid}: ${parseFloat(inv.paidAmount).toFixed(2)}</p>
+                    <h3>${t.thBal}: ${parseFloat(inv.balanceAmount).toFixed(2)}</h3>
+                </div>
                 <script>window.onload=function(){window.print();window.close();}<\/script>
             </body></html>`);
             printWin.document.close();
@@ -130,9 +186,14 @@
         async function handleShare(id, platform) {
             const inv = cachedInvoices.find(i => i.invoiceId === id);
             if (!inv) return;
-            const msg = `Invoice: ${inv.invoiceId}\nTotal: ${inv.total}\nPaid: ${inv.paidAmount}\nBalance: ${inv.balanceAmount}`;
+            const lang = localStorage.getItem("dashboardLang") || "en";
+            const t = i18n[lang];
+
+            const msg = `${t.thInvId}: ${inv.invoiceId}\n${t.thTotal}: ${inv.total}\n${t.thPaid}: ${inv.paidAmount}\n${t.thBal}: ${inv.balanceAmount}`;
+            
             if (platform === 'wa') {
-                window.open(`https://api.whatsapp.com/send?phone=${inv.clientPhone}&text=${encodeURIComponent(msg)}`, '_blank');
+                const cleanPhone = String(inv.clientPhone).replace(/\D/g, '');
+                window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`, '_blank');
             } else {
                 window.location.href = `mailto:?subject=Invoice ${inv.invoiceId}&body=${encodeURIComponent(msg)}`;
             }
