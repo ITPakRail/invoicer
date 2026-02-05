@@ -140,7 +140,15 @@
                 <li onclick="handleNav('add-payment')" data-key="navAddPay">📥 Add Payments</li>
                 <li onclick="handleNav('client-statement')" data-key="navStatement">📜 Client Statement</li>
             </ul>
+             <li onclick="toggleMenu('inventory-menu')" data-key="navInventory">📦 Inventory & Items ▾</li>
+<ul id="inventory-menu" class="submenu">
+    <li onclick="handleNav('add-item')" data-key="navAddItem">➕ Add New Item</li>
+    <li onclick="handleNav('view-items')" data-key="navItemList">📋 Manage Items</li>
+</ul>
 
+<li onclick="toggleMenu('settings-menu')" data-key="navSettings">⚙️ Settings ▾</li>               
+
+            
             <li onclick="toggleMenu('settings-menu')" data-key="navSettings">⚙️ Settings ▾</li>
             <ul id="settings-menu" class="submenu">
                 <li onclick="handleNav('biz-settings')" data-key="navBizSet">🏢 Business Setting</li>
@@ -368,6 +376,9 @@
             'view-clients': 'view-clients.html', 
             'add-payment': 'payment.html',
             'client-statement': 'client-statement.html',
+            // --- NEW ROUTES ---
+        'add-item': 'add-item.html',
+        'view-items': 'view-items.html',
             'biz-settings': 'business-settings.html', 
             'tax-settings': 'tax-settings.html', 
             'currency-settings': 'currency-settings.html' 
