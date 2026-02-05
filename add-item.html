@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add New Item / Service</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap');
+        
+        :root { --primary: #2c3e50; --accent: #3498db; --success: #27ae60; }
+        body { font-family: 'Segoe UI', sans-serif; background: white; margin: 0; padding: 20px; transition: all 0.3s; }
+        
+        /* RTL Support */
+        body.rtl-mode { direction: rtl; font-family: 'Noto Nastaliq Urdu', serif; }
+
+        .container { max-width: 500px; margin: auto; background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 15px rgba(0,0,0,0.1); }
+        h2 { color: var(--primary); margin-top: 0; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        
+        .form-group { margin-bottom: 15px; text-align: left; }
+        body.rtl-mode .form-group { text-align: right; }
+        
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
+        input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 16px; }
+        
+        .btn-save { width: 100%; padding: 15px; background: var(--success); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 16px; margin-top: 10px; transition: 0.3s; }
+        .btn-save:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-save:disabled { background: #ccc; cursor: not-allowed; }
+
+        #msg { margin-top: 15px; padding: 10px; border-radius: 5px; display: none; text-align: center; font-weight: bold; }
+        .msg-success { background: #d4edda; color: #155724; display: block !important; }
+        .msg-error { background: #f8d7da; color: #721c24; display: block !important; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2 data-key="title">Add New Item / Service</h2>
+    
+    <div class="form-group">
+        <label data-key="lblItem">Item Name / Description</label>
+        <input type="text" id="itemName" placeholder="e.g. Graphic Design / Laptop" data-placeholder="phItem">
+    </div>
+
+    <div class="form-group">
+        <label data-key="lblPrice">Unit Price</label>
+        <input type="number" id="itemPrice" placeholder="0.00" data-placeholder="phPrice" step="0.01">
+    </div>
+
+    <button id="saveBtn" class="btn-save" onclick="saveItem()" data-key="btnSave">Save Item</button>
+    
+    <div id="msg"></div>
+</div>
+
+<script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbwpyyuTtbSv_2udttbXog8oUfq_vgFvr-y7DggVO-WXYkR4APnpB_0BS6TpSZLdnBrN/exec";
+    const user = JSON.parse(localStorage.getItem("user"));
+
+    const i18n = {
+        en: {
+            title: "Add New Item / Service",
+            lblItem: "Item Name / Description",
+            lblPrice: "Unit Price",
+            phItem: "Enter item or service name...",
+            phPrice: "Enter price...",
+            btnSave: "Save Item",
+            saving: "Saving...",
+            success: "✅ Item added successfully!",
+            error: "❌ Error saving item. Try again."
+        },
+        ur: {
+            title: "نئی چیز یا سروس شامل کریں",
+            lblItem: "چیز کا نام / تفصیل",
+            lblPrice: "قیمت",
+            phItem: "نام درج کریں...",
+            phPrice: "قیمت درج کریں...",
+            btnSave: "محفوظ کریں",
+            saving: "محفوظ ہو رہا ہے...",
+            success: "✅ چیز کامیابی سے شامل کر دی گئی!",
+            error: "❌ خرابی! دوبارہ کوشش کریں۔"
+        }
+    };
+
+    window.onload = () => {
+        applyLanguage();
+    };
+
+    function applyLanguage() {
+        const lang = localStorage.getItem("dashboardLang") || "en";
+        const t = i18n[lang];
+        
+        document.querySelectorAll('[data-key]').forEach(el => {
+            const key = el.getAttribute('data-key');
+            if (t[key]) el.innerText = t[key];
+        });
+
+        document.querySelectorAll('[data-placeholder]').forEach(el => {
+            const key = el.getAttribute('data-placeholder');
+            if (t[key]) el.placeholder = t[key];
+        });
+
+        if (lang === 'ur') document.body.classList.add('rtl-mode');
+    }
+
+    async function saveItem() {
+        const name = document.getElementById("itemName").value.trim();
+        const price = document.getElementById("itemPrice").value.trim();
+        const msgDiv = document.getElementById("msg");
+        const saveBtn = document.getElementById("saveBtn");
+        const lang = localStorage.getItem("dashboardLang") || "en";
+
+        if (!name || !price) {
+            alert(lang === 'ur' ? "براہ کرم تمام خانے پُر کریں۔" : "Please fill all fields.");
+            return;
+        }
+
+        saveBtn.disabled = true;
+        saveBtn.innerText = i18n[lang].saving;
+
+        const payload = {
+            action: "saveItem",
+            sheetId: user.sheetId,
+            userId: user.id,
+            itemId: "ITM-" + Math.floor(Math.random() * 90000 + 10000),
+            itemName: name,
+            price: price
+        };
+
+        try {
+            // Using POST for saveItem
+            await fetch(API_URL, {
+                method: "POST",
+                mode: "no-cors",
+                body: JSON.stringify(payload)
+            });
+
+            // Since no-cors doesn't give a response, we assume success after a small delay
+            msgDiv.innerText = i18n[lang].success;
+            msgDiv.className = "msg-success";
+            
+            // Clear form
+            document.getElementById("itemName").value = "";
+            document.getElementById("itemPrice").value = "";
+
+        } catch (e) {
+            msgDiv.innerText = i18n[lang].error;
+            msgDiv.className = "msg-error";
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.innerText = i18n[lang].btnSave;
+            setTimeout(() => { msgDiv.className = ""; msgDiv.innerText = ""; }, 3000);
+        }
+    }
+</script>
+</body>
+</html>
