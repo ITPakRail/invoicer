@@ -185,26 +185,38 @@
         closeModal();
         setTimeout(loadList, 1500);
     }
-
-    async function deleteInv(id) {
+async function deleteInv(id) {
         const lang = localStorage.getItem("dashboardLang") || "en";
-        if (confirm(i18n[lang].msgDelete + id + "?")) {
+        const t = i18n[lang];
+
+        if (confirm(t.msgDelete + id + "?")) {
+            // Find the row in the table and make it look "deleting"
+            const rows = document.querySelectorAll("#updateBody tr");
+            let targetRow = Array.from(rows).find(r => r.cells[0].innerText === id);
+            if (targetRow) {
+                targetRow.style.opacity = "0.3";
+                targetRow.style.pointerEvents = "none";
+            }
+
             const payload = {
                 action: "deleteInvoice",
                 sheetId: user.sheetId,
                 invoiceId: id
             };
 
+            // Send request
             await fetch(API_URL, {
                 method: "POST",
                 mode: "no-cors",
                 body: JSON.stringify(payload)
             });
 
-            setTimeout(loadList, 1500);
+            // Wait 2 seconds for GS to finish both sheets, then reload
+            setTimeout(() => {
+                loadList();
+            }, 2000);
         }
     }
-
     function closeModal() { document.getElementById("editModal").style.display = "none"; }
 
     function filterTable() {
