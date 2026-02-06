@@ -160,6 +160,12 @@
             const dir = lang === 'ur' ? 'rtl' : 'ltr';
             const align = lang === 'ur' ? 'right' : 'left';
 
+            // ONLY ADDITION: Prepare logo HTML if it exists in user data
+            let logoImg = "";
+            if(user.logo) {
+                logoImg = `<img src="${user.logo}" style="max-height:70px; margin-bottom:10px;">`;
+            }
+
             const printWin = window.open('', '_blank');
             printWin.document.write(`<html><head><style>
                 @import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu&display=swap');
@@ -168,7 +174,8 @@
                 th,td{border:1px solid #ddd; padding:10px; text-align:${align}} 
                 th{background:#f4f4f4}
             </style></head><body>
-                <h2>${user.business}</h2>
+                ${logoImg}
+                <h2 style="margin-top:0;">${user.business}</h2>
                 <p>${t.thInvId}: ${inv.invoiceId} | ${t.thDate}: ${inv.date}</p>
                 <p><strong>${t.thClient}:</strong> ${inv.clientName}</p>
                 <table><thead><tr><th>${t.thDesc}</th><th>${t.thQty}</th><th>${t.thPrice}</th><th>${t.thTotal}</th></tr></thead>
