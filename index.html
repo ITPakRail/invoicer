@@ -230,6 +230,9 @@ async function doLogin() {
         
         if (result.status === "Success") {
             localStorage.setItem("user", JSON.stringify(result));
+            // 2. Save the lists to memory
+    localStorage.setItem("clients", JSON.stringify(result.clients || []));
+    localStorage.setItem("items", JSON.stringify(result.items || []));
             msg.style.color = "green";
             msg.innerText = "✅ Success! Redirecting...";
             setTimeout(() => {
