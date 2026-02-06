@@ -179,32 +179,53 @@
             }
         });
 
-        window.onload = async () => {
+     window.onload = async () => {
             applyFormLanguage();
             document.getElementById("display-date").innerText = new Date().toLocaleDateString();
             
-            // Handle Logo and Business Name
-            if (user) {
-                const bName = document.getElementById("business-name");
-                const bLogo = document.getElementById("business-logo");
-                bName.innerText = user.business || "My Business";
-                if (user.logo && user.logo.trim() !== "") {
-                    bLogo.src = user.logo;
-                    bLogo.style.display = "block";
-                } else {
-                    bLogo.style.display = "none";
-                }
+            if (!user) return alert("Session expired.");
+
+            // 1. Branding
+            const bName = document.getElementById("business-name");
+            const bLogo = document.getElementById("business-logo");
+            bName.innerText = user.business || "My Business";
+            if (user.logo && user.logo.trim() !== "") {
+                bLogo.src = user.logo;
+                bLogo.style.display = "block";
             }
 
-            addNewRow(); 
-            if (!user || !user.id || !user.sheetId) return alert("Session expired.");
+            // 2. Load Clients & Items FROM MEMORY (Instant)
+            clientsArray = JSON.parse(localStorage.getItem("clients") || "[]");
+            savedItemsArray = JSON.parse(localStorage.getItem("items") || "[]");
 
+            // Populate Client Datalist
+            const dataList = document.getElementById("client-list");
+            dataList.innerHTML = ""; // Clear old
+            clientsArray.forEach(c => {
+                const option = document.createElement("option");
+                option.value = c.name || c.Client_Name || ""; 
+                dataList.appendChild(option);
+            });
+
+            // Populate Items Datalist
+            const itemDL = document.getElementById("items-list");
+            itemDL.innerHTML = ""; // Clear old
+            savedItemsArray.forEach(item => {
+                const option = document.createElement("option");
+                option.value = item.name;
+                itemDL.appendChild(option);
+            });
+
+            addNewRow(); 
+
+            // 3. Fetch specific dynamic data (ID, Tax, Currency)
+            // These are small and change frequently, so we still fetch them or cache if preferred
             try {
-                const idRes = await fetch(`${API_URL}?action=getNextId&userId=${encodeURIComponent(user.id)}&sheetId=${user.sheetId}`);
+                const idRes = await fetch(`${API_URL}?action=getNextId&sheetId=${user.sheetId}`);
                 const idData = await idRes.json();
                 document.getElementById("display-inv-id").innerText = idData.nextId;
 
-                const setRes = await fetch(`${API_URL}?action=getSettings&userId=${user.id}&sheetId=${user.sheetId}`);
+                const setRes = await fetch(`${API_URL}?action=getSettings&sheetId=${user.sheetId}`);
                 const setData = await setRes.json();
                 if(setData.status === "Success") {
                     taxPercent = parseFloat(setData.taxRate) || 0;
@@ -216,31 +237,15 @@
                 if(currData.status === "Success") {
                     document.querySelectorAll(".curr-symbol").forEach(s => s.innerText = currData.currSymbol || "");
                 }
-
-                const clientRes = await fetch(`${API_URL}?action=getClients&userId=${user.id}&sheetId=${user.sheetId}`);
-                clientsArray = await clientRes.json();
-                const dataList = document.getElementById("client-list");
-                clientsArray.forEach(c => {
-                    const option = document.createElement("option");
-                    option.value = c.Client_Name || c.name || ""; 
-                    dataList.appendChild(option);
-                });
-
-                const itemRes = await fetch(`${API_URL}?action=getItems&sheetId=${user.sheetId}`);
-                savedItemsArray = await itemRes.json();
-                const itemDL = document.getElementById("items-list");
-                savedItemsArray.forEach(item => {
-                    const option = document.createElement("option");
-                    option.value = item.name;
-                    itemDL.appendChild(option);
-                });
-
-            } catch (e) { console.error(e); }
+            } catch (e) { console.error("Error loading settings:", e); }
         };
 
+        // Optimized Auto-Fill using local memory
         function autoFillClient(val) {
-            const found = clientsArray.find(c => (c.Client_Name || c.name) === val);
-            if (found) document.getElementById("client-phone").value = found.phone || "";
+            const found = clientsArray.find(c => (c.name === val || c.Client_Name === val));
+            if (found) {
+                document.getElementById("client-phone").value = found.phone || "";
+            }
         }
 
         function autoFillPrice(inputEl) {
@@ -251,7 +256,7 @@
                 calculate();
             }
         }
-
+        
         function addNewRow() {
             const tbody = document.getElementById("item-body");
             const tr = document.createElement("tr");
