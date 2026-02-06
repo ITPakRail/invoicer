@@ -1,284 +1,422 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>eInvoicer - MultiVendor</title>
-    <style>
-        /* Base Styles */
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            margin: 0; 
-            display: flex; 
-            flex-direction: column; 
-            min-height: 100vh; 
-            background: #f4f7f6; 
-        }
+/**
+ * eInvoicer MULTI-TENANT BACKEND - FINAL STABLE VERSION
+ */
 
-        /* Header Panel */
-        header {
-            background: #2e7d32;
-            color: white;
-            padding: 15px 20px;
-            text-align: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        header h1 { margin: 0; font-size: 24px; }
+const MASTER_SHEET_ID = "1g5aFYOvgeBPgnU-ngDax-OMqcqleJJk8fqhjf0bHqH8"; 
+const FOLDER_ID = "1UyDXRrnitZpKarU_8SoUGl92-FeB7YHw"; 
 
-        /* Main Container */
-        .container {
-            flex: 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
-
-        /* Card Styling */
-        .card { 
-            background: white; 
-            padding: 30px; 
-            border-radius: 12px; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
-            width: 100%; 
-            max-width: 350px; 
-            transition: all 0.3s ease;
-        }
-        
-        #title { margin-top: 0; color: #333; text-align: center; margin-bottom: 20px; }
-
-        input { 
-            width: 100%; 
-            padding: 12px; 
-            margin: 8px 0; 
-            box-sizing: border-box; 
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 14px;
-        }
-
-        button { 
-            width: 100%; 
-            padding: 12px; 
-            background: #2e7d32; 
-            color: white; 
-            border: none; 
-            border-radius: 6px;
-            cursor: pointer; 
-            margin-top: 15px; 
-            font-size: 16px;
-            font-weight: bold;
-        }
-        button:hover { background: #256629; }
-
-        .hidden { display: none; }
-        
-        .toggle { 
-            font-size: 13px; 
-            color: #1976d2; 
-            cursor: pointer; 
-            text-align: center; 
-            margin-top: 15px; 
-            text-decoration: underline;
-        }
-
-        .forgot-pass {
-            display: block;
-            text-align: right;
-            font-size: 11px;
-            color: #666;
-            cursor: pointer;
-            margin-top: -5px;
-        }
-
-        #msg { text-align: center; font-size: 14px; margin-top: 15px; font-weight: 500; }
-
-        /* Footer Panel */
-        footer {
-            background: #333;
-            color: white;
-            padding: 20px;
-            text-align: center;
-        }
-        .footer-content { margin-bottom: 10px; font-size: 14px; }
-        .copyright { font-size: 12px; color: #bbb; }
-
-        /* Mobile Responsive adjustments */
-        @media (max-width: 480px) {
-            .card { padding: 20px; }
-            header h1 { font-size: 20px; }
-        }
-    </style>
-</head>
-<body>
-
-<header>
-    <h1>eInvoicer Panel</h1>
-</header>
-
-<div class="container">
-    <div class="card" id="authBox">
-        <h2 id="title">eInvoicer Login</h2>
-        
-        <div id="loginFields">
-            <input type="email" id="l_email" placeholder="Email">
-            <input type="password" id="l_pass" placeholder="Password">
-            <span class="forgot-pass" onclick="doForgot()">Forgot Password?</span>
-            <button onclick="doLogin()">Login</button>
-            <div class="toggle" onclick="toggleForm()">New user? Sign up</div>
-        </div>
-
-        <div id="signupFields" class="hidden">
-            <input type="text" id="s_name" placeholder="Full Name">
-            <input type="email" id="s_email" placeholder="Email">
-            <input type="password" id="s_pass" placeholder="Password">
-            <input type="text" id="s_phone" placeholder="Phone">
-            <input type="text" id="s_biz" placeholder="Business Name">
-            <label style="font-size: 12px; color: #666; margin-top: 10px; display: block; text-align: center;">Upload Business Logo</label>
-            <input type="file" id="s_logo" accept="image/*" onchange="previewLogo(this)">
-            <div id="logoPreview" style="margin: 5px 0; text-align: center;"></div>
-            <button onclick="doSignup()">Create Account</button>
-            <div class="toggle" onclick="toggleForm()">Back to Login</div>
-        </div>
-        
-        <p id="msg"></p>
-    </div>
-</div>
-
-<footer>
-    <div class="footer-content">
-        Simplifying your business invoicing needs.
-    </div>
-    <div class="copyright">
-        Copyright © <span id="year"></span> emahar.com
-    </div>
-</footer>
-
-<script>
-document.getElementById('year').innerText = new Date().getFullYear();
-
-const API_URL = "https://script.google.com/macros/s/AKfycbwpyyuTtbSv_2udttbXog8oUfq_vgFvr-y7DggVO-WXYkR4APnpB_0BS6TpSZLdnBrN/exec"; 
-
-let globalLogoBase64 = ""; 
-
-function toggleForm() {
-    document.getElementById('loginFields').classList.toggle('hidden');
-    document.getElementById('signupFields').classList.toggle('hidden');
-    document.getElementById('title').innerText = document.getElementById('loginFields').classList.contains('hidden') ? "eInvoicer Signup" : "eInvoicer Login";
-    document.getElementById("msg").innerText = "";
-}
-
-function previewLogo(input) {
-    if (input.files && input.files[0]) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            globalLogoBase64 = e.target.result;
-            document.getElementById('logoPreview').innerHTML = 
-                `<img src="${globalLogoBase64}" style="height: 50px; border-radius: 4px; border: 1px solid #ddd;">`;
-        };
-        reader.readAsDataURL(input.files[0]);
-    }
-}
-
-async function doForgot() {
-    const email = document.getElementById("l_email").value;
-    if(!email) {
-        alert("Please enter your email address first.");
-        return;
-    }
-    const msg = document.getElementById("msg");
-    msg.style.color = "blue";
-    msg.innerText = "Requesting password recovery...";
-
+// --- GET REQUESTS (Fetching Data) ---
+function doGet(e) {
+  const action = e.parameter.action;
+  
+  // 1. FORGOT PASSWORD ACTION (Moved here so it doesn't require sheetId)
+  if (action === 'forgot') {
     try {
-        const response = await fetch(`${API_URL}?action=forgot&email=${encodeURIComponent(email)}`);
-        const result = await response.json();
-        if(result.status === "Success") {
-            msg.style.color = "green";
-            msg.innerText = "✅ " + result.message;
-        } else {
-            msg.style.color = "red";
-            msg.innerText = "❌ Email not found.";
+      const email = String(e.parameter.email || "").toLowerCase().trim();
+      const masterSS = SpreadsheetApp.openById(MASTER_SHEET_ID);
+      const userSheet = masterSS.getSheetByName("users"); 
+      const data = userSheet.getDataRange().getValues();
+      
+      let userPassword = null;
+      let userName = "";
+
+      for (let i = 1; i < data.length; i++) {
+        // Column C (Index 2) is Email
+        if (String(data[i][2]).toLowerCase().trim() === email) { 
+          userName = data[i][1];     // Column B (Index 1) is Full_Name
+          userPassword = data[i][3]; // Column D (Index 3) is Password
+          break;
         }
-    } catch (e) {
-        msg.innerText = "❌ Error requesting password.";
-    }
-}
+      }
 
-async function doSignup() {
-    const name = document.getElementById("s_name").value;
-    const email = document.getElementById("s_email").value;
-    const pass = document.getElementById("s_pass").value;
-    const biz = document.getElementById("s_biz").value;
-
-    if(!name || !email || !pass || !biz) {
-        alert("Please fill all required fields");
-        return;
-    }
-
-    const payload = {
-        action: "signup",
-        name: name,
-        email: email,
-        password: pass,
-        phone: document.getElementById("s_phone").value,
-        business: biz,
-        logo: globalLogoBase64 
-    };
-
-    document.getElementById("msg").style.color = "blue";
-    document.getElementById("msg").innerText = "Registering (creating your database)...";
-    
-    try {
-        await fetch(API_URL, {
-            method: "POST",
-            mode: "no-cors", 
-            body: JSON.stringify(payload)
+      if (userPassword) {
+        MailApp.sendEmail({
+          to: email,
+          subject: "eInvoicer Password Recovery",
+          body: "Hi " + userName + ",\n\nYour password for eInvoicer is: " + userPassword + "\n\nRegards,\nemahar.com"
         });
-
-        document.getElementById("msg").style.color = "green";
-        document.getElementById("msg").innerText = "✅ Signup successful! Please log in.";
-        globalLogoBase64 = "";
-        document.getElementById('logoPreview').innerHTML = "";
-        setTimeout(toggleForm, 2000);
-    } catch (err) {
-        document.getElementById("msg").style.color = "red";
-        document.getElementById("msg").innerText = "❌ Error during signup.";
-        console.error(err);
-    }
-}
-
-async function doLogin() {
-    const email = document.getElementById("l_email").value;
-    const pass = document.getElementById("l_pass").value;
-    const msg = document.getElementById("msg");
-    msg.style.color = "blue";
-    msg.innerText = "Authenticating...";
-
-    const loginUrl = `${API_URL}?action=login&email=${encodeURIComponent(email)}&password=${encodeURIComponent(pass)}`;
-
-    try {
-        const response = await fetch(loginUrl);
-        const result = await response.json();
         
-        if (result.status === "Success") {
-            localStorage.setItem("user", JSON.stringify(result));
-            msg.style.color = "green";
-            msg.innerText = "✅ Success! Redirecting...";
-            setTimeout(() => {
-                window.location.href = "dashboard.html";
-            }, 1000);
-        } else {
-            msg.style.color = "red";
-            msg.innerText = "❌ Invalid Credentials";
-        }
-    } catch (error) {
-        msg.style.color = "red";
-        msg.innerText = "❌ Connection Error.";
-        console.error("Fetch Error:", error);
+        return res({ 
+          status: "Success", 
+          message: "Password has been sent to your email." 
+        });
+      } else {
+        return res({ 
+          status: "Error", 
+          message: "Email not found." 
+        });
+      }
+    } catch (err) {
+      return res({status: "Error", message: err.toString()});
     }
-}
-</script>
+  }
 
-</body>
-</html>
+  // 2. LOGIN ACTION
+  if (action === "login") {
+    try {
+      const masterSS = SpreadsheetApp.openById(MASTER_SHEET_ID);
+      const userSheet = masterSS.getSheetByName('users');
+      const data = userSheet.getDataRange().getDisplayValues(); 
+      
+      const inputEmail = String(e.parameter.email || "").toLowerCase().trim();
+      const inputPass = String(e.parameter.password || "").trim();
+
+      for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        const sheetEmail = String(row[2] || "").toLowerCase().trim();
+        const sheetPass = String(row[3] || "").trim();
+
+        if (sheetEmail === inputEmail && sheetPass === inputPass) {
+          return res({
+            status: "Success",
+            id: row[0],         // User_ID
+            name: row[1],       // Full_Name
+            business: row[5],   // Business_Name
+            logo: row[6],       // Logo
+            sheetId: row[8]     // User_Sheet_ID
+          });
+        }
+      }
+      return res({status: "Invalid"});
+    } catch (err) {
+      return res({status: "Error", message: err.toString()});
+    }
+  }
+
+  // --- PRIVATE DATA ACTIONS (Requires logged in sheetId) ---
+  if (!e.parameter.sheetId) return res({status: "Error", message: "Missing Sheet ID"});
+  const userSS = SpreadsheetApp.openById(e.parameter.sheetId);
+
+  if (action === "getNextId") {
+    const sheet = userSS.getSheetByName('invoices') || userSS.insertSheet('invoices');
+    const data = sheet.getDataRange().getDisplayValues();
+    let maxNum = 1000;
+    if (data.length > 1) {
+      for (let i = 1; i < data.length; i++) {
+        const val = data[i][0].toString().replace("INV-", "");
+        const num = parseInt(val);
+        if (!isNaN(num) && num > maxNum) maxNum = num;
+      }
+    }
+    return res({ nextId: "INV-" + (maxNum + 1) });
+  }
+  
+  if (action === "getSettings") {
+    const sheet = userSS.getSheetByName('settings') || userSS.insertSheet('settings');
+    const data = sheet.getDataRange().getDisplayValues();
+    if (data.length <= 1) return res({ status: "Success", taxName: "", taxRate: 0 });
+    return res({ status: "Success", taxName: data[1][1], taxRate: data[1][2] });
+  }
+
+  if (action === "getCurrency") {
+    const sheet = userSS.getSheetByName('settings') || userSS.insertSheet('settings');
+    const data = sheet.getDataRange().getDisplayValues();
+    if (data.length <= 1) return res({ status: "Empty" });
+    return res({ status: "Success", currName: data[1][3], currSymbol: data[1][4] });
+  }
+  
+  if (action === "getInvoices") {
+    const sheet = userSS.getSheetByName('invoices');
+    const data = sheet.getDataRange().getDisplayValues();
+    const filtered = data.slice(1).map(row => ({
+      Invoice_ID: row[0],
+      User_ID: row[1],
+      Client_Name: row[2],
+      Client_Phone: row[3],
+      Date: row[4],
+      Total_Amount: row[7],
+      Items_JSON: row[8],
+      Paid_Amount: row[9],
+      Balance_Amount: row[10],
+      Status: row[11]
+    }));
+    return res(filtered);
+  }
+
+  if (action === "getClients") {
+    const sheet = userSS.getSheetByName("clients") || userSS.insertSheet("clients");
+    const data = sheet.getDataRange().getDisplayValues(); 
+    return res(data.length <= 1 ? [] : data.slice(1).map(r => ({ 
+      id: r[0],
+      userId: r[1],
+      name: r[2], 
+      Client_Name: r[2],
+      phone: r[3],
+      email: r[4],
+      address: r[5]
+    })));
+  }
+
+  if (action === 'getLedger') {
+    const sheet = userSS.getSheetByName('ledger') || userSS.insertSheet('ledger');
+    if (sheet.getLastRow() === 0) {
+       sheet.appendRow(["Date", "Invoice_ID", "Client_Name", "Description", "Debit_Amount", "Credit_Amount", "Balance"]);
+    }
+    const data = sheet.getDataRange().getDisplayValues();
+    const headers = data[0];
+    const rows = data.slice(1);
+    
+    const result = rows.map(row => {
+      let obj = {};
+      headers.forEach((header, i) => obj[header.trim()] = row[i]);
+      return obj;
+    });
+    return res(result);
+  }
+
+  if (action === "getItems") {
+    const sheet = userSS.getSheetByName("items") || userSS.insertSheet("items");
+    const data = sheet.getDataRange().getDisplayValues(); 
+    return res(data.length <= 1 ? [] : data.slice(1).map(r => ({ 
+      id: r[0],
+      name: r[2],
+      price: r[3]
+    })));
+  }
+}
+
+// --- POST REQUESTS (Saving Data) ---
+function doPost(e) {
+  try {
+    const data = JSON.parse(e.postData.contents);
+    
+    if (data.action === "signup") {
+      const masterSS = SpreadsheetApp.openById(MASTER_SHEET_ID);
+      const userSheet = masterSS.getSheetByName('users');
+      const userId = "USR" + Math.floor(Math.random() * 100000);
+      userSheet.appendRow([userId, data.name, data.email, data.password, data.phone, data.business, data.logo || "", new Date().toLocaleDateString(), "PENDING..."]);
+      SpreadsheetApp.flush();
+      const privateFileId = createPrivateUserSheet(data.email);
+      const lastRow = userSheet.getLastRow();
+      userSheet.getRange(lastRow, 9).setValue(privateFileId);
+      return ContentService.createTextOutput("Success").setMimeType(ContentService.MimeType.TEXT);
+    }
+
+    if (data.action === "saveInvoice") {
+      const userSS = SpreadsheetApp.openById(data.sheetId);
+      const sheet = userSS.getSheetByName('invoices') || userSS.insertSheet('invoices');
+      const ledgSheet = userSS.getSheetByName('ledger') || userSS.insertSheet('ledger');
+
+      sheet.appendRow([
+        data.invoiceId, data.userId, data.clientName, data.clientPhone || "", 
+        data.date, data.subtotal, data.taxAmount, data.total, 
+        JSON.stringify(data.items), data.paidAmount, data.balanceAmount, data.status
+      ]);
+
+      ledgSheet.appendRow([
+        data.date, data.invoiceId, data.clientName, "Invoice Generated", data.total, 0, data.total
+      ]);
+
+      let initialPaid = parseFloat(data.paidAmount) || 0;
+      if (initialPaid > 0) {
+        ledgSheet.appendRow([
+          data.date, data.invoiceId, data.clientName, "Initial Payment", 0, initialPaid, data.balanceAmount
+        ]);
+      }
+
+      SpreadsheetApp.flush(); 
+      return ContentService.createTextOutput("Success").setMimeType(ContentService.MimeType.TEXT);
+    }
+
+    if (data.action === "updateInvoice") {
+      const userSS = SpreadsheetApp.openById(data.sheetId);
+      const sheet = userSS.getSheetByName('invoices');
+      const rows = sheet.getDataRange().getValues();
+      for (let i = 1; i < rows.length; i++) {
+        if (String(rows[i][0]) === String(data.invoiceId)) {
+          sheet.getRange(i + 1, 3).setValue(data.clientName);
+          sheet.getRange(i + 1, 4).setValue(data.clientPhone);
+          sheet.getRange(i + 1, 8).setValue(data.total);
+          if(data.paidAmount !== undefined) sheet.getRange(i + 1, 10).setValue(data.paidAmount);
+          if(data.balanceAmount !== undefined) sheet.getRange(i + 1, 11).setValue(data.balanceAmount);
+          if(data.status !== undefined) sheet.getRange(i + 1, 12).setValue(data.status);
+          SpreadsheetApp.flush();
+          return ContentService.createTextOutput("Success").setMimeType(ContentService.MimeType.TEXT);
+        }
+      }
+    }
+
+    if (data.action === "deleteInvoice") {
+      const userSS = SpreadsheetApp.openById(data.sheetId);
+      const invSheet = userSS.getSheetByName('invoices');
+      const ledgSheet = userSS.getSheetByName('ledger');
+      const targetId = data.invoiceId;
+
+      if (invSheet) {
+        let invData = invSheet.getDataRange().getValues();
+        for (let i = invData.length - 1; i >= 0; i--) {
+          if (String(invData[i][0]) === String(targetId)) invSheet.deleteRow(i + 1);
+        }
+      }
+
+      if (ledgSheet) {
+        let ledgData = ledgSheet.getDataRange().getValues();
+        for (let j = ledgData.length - 1; j >= 0; j--) {
+          if (String(ledgData[j][1]) === String(targetId)) ledgSheet.deleteRow(j + 1);
+        }
+      }
+      SpreadsheetApp.flush();
+      return ContentService.createTextOutput("Success").setMimeType(ContentService.MimeType.TEXT);
+    }
+
+    if (data.action === "saveClient") {
+      const userSS = SpreadsheetApp.openById(data.sheetId);
+      const sheet = userSS.getSheetByName('clients') || userSS.insertSheet('clients');
+      sheet.appendRow([data.clientId, data.userId, data.clientName, data.phone, data.email || "", data.address || "", data.dateAdded]);
+      return ContentService.createTextOutput("Success").setMimeType(ContentService.MimeType.TEXT);
+    }
+
+    if (data.action === "recordPayment") {
+      const userSS = SpreadsheetApp.openById(data.sheetId);
+      const invSheet = userSS.getSheetByName('invoices');
+      const ledgSheet = userSS.getSheetByName('ledger') || userSS.insertSheet('ledger');
+      const rows = invSheet.getDataRange().getValues();
+      
+      for (let i = 1; i < rows.length; i++) {
+        if (String(rows[i][0]) === String(data.invoiceId)) {
+          let currentPaid = parseFloat(rows[i][9] || 0);
+          let newPaid = currentPaid + parseFloat(data.amountReceived);
+          let totalAmount = parseFloat(rows[i][7]);
+          let newBalance = totalAmount - newPaid;
+          let newStatus = newBalance <= 0 ? "Paid" : "Partial";
+
+          invSheet.getRange(i + 1, 10).setValue(newPaid);
+          invSheet.getRange(i + 1, 11).setValue(newBalance);
+          invSheet.getRange(i + 1, 12).setValue(newStatus);
+
+          ledgSheet.appendRow([
+            new Date().toLocaleDateString(), data.invoiceId, rows[i][2], "Payment Received", 0, data.amountReceived, newBalance
+          ]);
+          SpreadsheetApp.flush();
+          return ContentService.createTextOutput("Success").setMimeType(ContentService.MimeType.TEXT);
+        }
+      }
+    }
+
+    if (data.action === "updateBusiness") {
+      const masterSS = SpreadsheetApp.openById(MASTER_SHEET_ID);
+      const userSheet = masterSS.getSheetByName('users');
+      const userData = userSheet.getDataRange().getValues();
+      for (let i = 1; i < userData.length; i++) {
+        if (String(userData[i][0]) === String(data.id)) {
+          userSheet.getRange(i + 1, 5).setValue(data.phone);
+          userSheet.getRange(i + 1, 6).setValue(data.business);
+          userSheet.getRange(i + 1, 7).setValue(data.logo);
+          return ContentService.createTextOutput("Success").setMimeType(ContentService.MimeType.TEXT);
+        }
+      }
+    }
+
+    if (data.action === "saveTax") {
+      const userSS = SpreadsheetApp.openById(data.sheetId);
+      const sheet = userSS.getSheetByName('settings') || userSS.insertSheet('settings');
+      const rows = sheet.getDataRange().getValues();
+      if (rows.length <= 1) {
+        sheet.appendRow([data.userId, data.taxName, data.taxRate, "USD", "$"]);
+      } else {
+        sheet.getRange(2, 2).setValue(data.taxName);
+        sheet.getRange(2, 3).setValue(data.taxRate);
+      }
+      return ContentService.createTextOutput("Success").setMimeType(ContentService.MimeType.TEXT);
+    }
+
+    if (data.action === "saveCurrency") {
+      const userSS = SpreadsheetApp.openById(data.sheetId);
+      const sheet = userSS.getSheetByName('settings') || userSS.insertSheet('settings');
+      const rows = sheet.getDataRange().getValues();
+      if (rows.length <= 1) {
+        sheet.clear();
+        sheet.appendRow(["User_ID", "Tax_Name", "Tax_Rate", "Currency_Name", "Currency_Symbol"]);
+        sheet.appendRow([data.userId, "", 0, data.currName, data.currSymbol]);
+      } else {
+        sheet.getRange(2, 4).setValue(data.currName);
+        sheet.getRange(2, 5).setValue(data.currSymbol);
+      }
+      return ContentService.createTextOutput("Success").setMimeType(ContentService.MimeType.TEXT);
+    }
+
+    if (data.action === "changePassword") {
+      const masterSS = SpreadsheetApp.openById(MASTER_SHEET_ID);
+      const userSheet = masterSS.getSheetByName('users');
+      const userData = userSheet.getDataRange().getValues();
+      for (let i = 1; i < userData.length; i++) {
+        if (String(userData[i][0]) === String(data.userId)) {
+          if (String(userData[i][3]) !== String(data.oldPass)) {
+            return ContentService.createTextOutput("Error: Incorrect old password").setMimeType(ContentService.MimeType.TEXT);
+          }
+          userSheet.getRange(i + 1, 4).setValue(data.newPass);
+          return ContentService.createTextOutput("Success").setMimeType(ContentService.MimeType.TEXT);
+        }
+      }
+    }
+
+    if (data.action === "saveItem") {
+      const userSS = SpreadsheetApp.openById(data.sheetId);
+      const sheet = userSS.getSheetByName('items') || userSS.insertSheet('items');
+      sheet.appendRow([data.itemId, data.userId, data.itemName, data.price, new Date().toLocaleDateString()]);
+      return ContentService.createTextOutput("Success").setMimeType(ContentService.MimeType.TEXT);
+    }
+
+    if (data.action === "deleteItem") {
+      const userSS = SpreadsheetApp.openById(data.sheetId);
+      const sheet = userSS.getSheetByName('items');
+      const items = sheet.getDataRange().getValues();
+      for (let i = items.length - 1; i >= 0; i--) {
+        if (String(items[i][0]) === String(data.itemId)) sheet.deleteRow(i + 1);
+      }
+      return ContentService.createTextOutput("Success").setMimeType(ContentService.MimeType.TEXT);
+    }
+
+    if (data.action === "updateItem") {
+      const userSS = SpreadsheetApp.openById(data.sheetId);
+      const sheet = userSS.getSheetByName('items');
+      const rows = sheet.getDataRange().getValues();
+      for (let i = 1; i < rows.length; i++) {
+        if (String(rows[i][0]) === String(data.itemId)) {
+          sheet.getRange(i + 1, 3).setValue(data.itemName); 
+          sheet.getRange(i + 1, 4).setValue(data.price); 
+          break;
+        }
+      }
+      return ContentService.createTextOutput("Success").setMimeType(ContentService.MimeType.TEXT);
+    }
+
+  } catch (err) {
+    return ContentService.createTextOutput("Error: " + err.toString());
+  }
+}
+
+function createPrivateUserSheet(userEmail) {
+  const fileName = "DB_" + userEmail;
+  const newFile = SpreadsheetApp.create(fileName);
+  const newFileId = newFile.getId();
+  
+  const inv = newFile.insertSheet("invoices");
+  inv.appendRow(["Invoice_ID", "User_ID", "Client_Name", "Client_Phone", "Date", "Sub_Total", "Tax_Amount", "Total_Amount", "Items_JSON", "Paid_Amount", "Balance_Amount", "Status"]);
+  
+  const cli = newFile.insertSheet("clients");
+  cli.appendRow(["Client_ID", "User_ID", "Name", "Phone", "Email", "Address", "Date_Added"]);
+
+  const items = newFile.insertSheet("items");
+  items.appendRow(["Item_ID", "User_ID", "Item_Name", "Price", "Date_Added"]);
+  
+  const set = newFile.insertSheet("settings");
+  set.appendRow(["User_ID", "Tax_Name", "Tax_Rate", "Currency_Name", "Currency_Symbol"]);
+
+  const ledg = newFile.insertSheet("ledger");
+  ledg.appendRow(["Date", "Invoice_ID", "Client_Name", "Description", "Debit_Amount", "Credit_Amount", "Balance"]);
+  
+  const defaultSheet = newFile.getSheetByName("Sheet1");
+  if (defaultSheet) newFile.deleteSheet(defaultSheet);
+  
+  const file = DriveApp.getFileById(newFileId);
+  const folder = DriveApp.getFolderById(FOLDER_ID);
+  folder.addFile(file);
+  DriveApp.getRootFolder().removeFile(file);
+  
+  return newFileId; 
+}
+
+function res(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
