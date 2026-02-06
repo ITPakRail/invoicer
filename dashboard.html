@@ -29,10 +29,31 @@
         /* TOGGLE BUTTON */
         .menu-toggle { font-size: 24px; cursor: pointer; margin-right: 15px; color: white; background: none; border: none; }
 
-        aside { background: var(--secondary); color: white; padding: 20px 0; display: flex; flex-direction: column; transition: 0.3s; overflow-y: auto; z-index: 1000; }
+      aside { 
+    background: var(--secondary); 
+    color: white; 
+    padding: 0; /* Changed from 20px 0 to 0 */
+    display: flex; 
+    flex-direction: column; 
+    transition: 0.3s; 
+    overflow-y: auto; 
+    z-index: 1000; 
+}
         #main-dashboard.sidebar-closed aside { transform: translateX(-250px); }
 
-        .logo-container { width: 80px; height: 80px; border-radius: 50%; border: 3px solid var(--accent); overflow: hidden; margin: 0 auto 20px auto; background: white; display: flex; justify-content: center; align-items: center; }
+      .logo-container { 
+    width: 100px; /* Slightly bigger */
+    height: 100px; 
+    border-radius: 50%; 
+    border: 3px solid var(--accent); 
+    overflow: hidden; 
+    margin: 20px auto; /* Gives space above the menu */
+    background: white; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center;
+    flex-shrink: 0; /* Prevents logo from squishing */
+}
         .logo-container img { width: 100%; height: 100%; object-fit: cover; }
 
         aside ul { list-style: none; padding: 0; width: 100%; margin: 0; }
