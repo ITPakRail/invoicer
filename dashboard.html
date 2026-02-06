@@ -303,19 +303,31 @@
         } catch (e) { msg.innerText = "❌ Connection Error"; }
     }
 
-    function setupDashboard(user) {
-        document.getElementById("auth-container").classList.add("hidden");
-        document.getElementById("main-dashboard").classList.remove("hidden");
-        document.getElementById("display-userid").innerText = user.id;
-        document.getElementById("display-username").innerText = user.name;
-        document.getElementById("display-bizname").innerText = user.business;
-        if(user.logo) {
-            document.getElementById("user-logo").src = user.logo;
-            document.getElementById("logo-wrapper").classList.remove("hidden");
-        }
-        loadDashboardStats();
-    }
+  function setupDashboard(user) {
+    document.getElementById("auth-container").classList.add("hidden");
+    document.getElementById("main-dashboard").classList.remove("hidden");
+    document.getElementById("display-userid").innerText = user.id;
+    document.getElementById("display-username").innerText = user.name;
+    document.getElementById("display-bizname").innerText = user.business;
 
+    // --- LOGO FIX ---
+    const logoImg = document.getElementById("user-logo");
+    const logoWrapper = document.getElementById("logo-wrapper");
+
+    if (user.logo && user.logo.length > 50) { 
+        logoImg.src = user.logo;
+        // Force the wrapper to show by removing hidden and setting display block
+        logoWrapper.classList.remove("hidden");
+        logoWrapper.style.display = "flex"; 
+        console.log("Logo detected and applied to dashboard.");
+    } else {
+        console.log("No logo found in user object.");
+        logoWrapper.classList.add("hidden");
+    }
+    // ----------------
+    
+    loadDashboardStats();
+}
     async function loadDashboardStats() {
         const user = JSON.parse(localStorage.getItem("user"));
         if (!user || !user.sheetId) return;
