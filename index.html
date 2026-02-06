@@ -229,10 +229,16 @@ async function doLogin() {
         const result = await response.json();
         
         if (result.status === "Success") {
+            // Save the main user object
             localStorage.setItem("user", JSON.stringify(result));
-            // 2. Save the lists to memory
-    localStorage.setItem("clients", JSON.stringify(result.clients || []));
-    localStorage.setItem("items", JSON.stringify(result.items || []));
+
+            // CRITICAL FIX: Explicitly save clients and items
+            // We use || [] to ensure it's at least an empty list, never 'null'
+            localStorage.setItem("clients", JSON.stringify(result.clients || []));
+            localStorage.setItem("items", JSON.stringify(result.items || []));
+
+            console.log("Login Data Saved Successfully");
+            
             msg.style.color = "green";
             msg.innerText = "✅ Success! Redirecting...";
             setTimeout(() => {
