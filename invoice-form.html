@@ -3,42 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <style>
-        /* Import Urdu Font for professional look */
         @import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap');
-
         body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: white; transition: all 0.3s; }
-        
-        /* Urdu Specific Styling */
         body.rtl-mode { font-family: 'Noto Nastaliq Urdu', serif; direction: rtl; }
         body.rtl-mode input { font-family: 'Noto Nastaliq Urdu', serif; text-align: right; }
-
         .header-flex { display: flex; justify-content: space-between; margin-bottom: 20px; background: #f8f9fa; padding: 10px; border-radius: 5px; }
         table { width: 100%; border-collapse: collapse; }
         th { background: #2c3e50; color: white; padding: 10px; border: 1px solid #ddd; }
         td { border: 1px solid #ddd; padding: 8px; }
         input { width: 95%; border: 1px solid #eee; padding: 5px; outline: none; }
         input:focus { border-color: #3498db; }
-        
         .total-container { margin-top: 20px; text-align: right; font-weight: bold; }
         body.rtl-mode .total-container { text-align: left; }
-        
         .total-row { display: flex; justify-content: flex-end; gap: 20px; margin-bottom: 5px; font-size: 1.1em; align-items: center; }
         body.rtl-mode .total-row { justify-content: flex-start; flex-direction: row-reverse; }
-
         .grand-total-row { font-size: 1.6em; color: #2e7d32; border-top: 2px solid #2e7d32; display: inline-block; padding-top: 5px; min-width: 250px; }
-        
-        /* New styling for payment inputs */
         .payment-row { color: #2c3e50; margin-top: 10px; }
         .balance-row { color: #e74c3c; font-size: 1.3em; }
         .payment-input { width: 100px; font-size: 1em; font-weight: bold; border-bottom: 2px solid #3498db; text-align: right; }
-
         .btn-gen { background: #27ae60; color: white; padding: 15px; width: 100%; border: none; border-radius: 5px; cursor: pointer; font-size: 1.1em; margin-top: 20px; }
         .btn-gen:hover { background: #219150; }
         .delete-btn { color: red; cursor: pointer; font-weight: bold; border: none; background: none; }
-
-        /* Print Correction */
         .print-only { display: none; }
-
         @media print {
             .btn-gen, .delete-btn, #item-body tr td:last-child, th:last-child, .no-print { display: none !important; }
             .print-only { display: inline !important; }
@@ -80,6 +66,8 @@
         <tbody id="item-body">
         </tbody>
     </table>
+    
+    <datalist id="items-list"></datalist>
 
     <div class="total-container">
         <div class="total-row">
@@ -116,6 +104,7 @@
         const user = JSON.parse(localStorage.getItem("user"));
         let taxPercent = 0;
         let clientsArray = [];
+        let savedItemsArray = [];
 
         const i18n = {
             en: {
@@ -179,36 +168,72 @@
             applyFormLanguage();
             document.getElementById("display-date").innerText = new Date().toLocaleDateString();
             addNewRow(); 
-            if (!user || !user.id || !user.sheetId) return alert("Session expired. Please login again.");
+            if (!user || !user.id || !user.sheetId) return alert("Session expired.");
+
             try {
+                // Fetch Invoice ID
                 const idRes = await fetch(`${API_URL}?action=getNextId&userId=${encodeURIComponent(user.id)}&sheetId=${user.sheetId}`);
                 const idData = await idRes.json();
                 document.getElementById("display-inv-id").innerText = idData.nextId;
 
+                // Fetch Tax Settings
                 const setRes = await fetch(`${API_URL}?action=getSettings&userId=${user.id}&sheetId=${user.sheetId}`);
                 const setData = await setRes.json();
                 if(setData.status === "Success") {
                     taxPercent = parseFloat(setData.taxRate) || 0;
                     document.getElementById("tax-rate-display").innerText = taxPercent;
-                    document.querySelectorAll(".curr-symbol").forEach(s => s.innerText = setData.currSymbol || "");
                 }
 
+                // Fetch Currency Separately (as defined in your code.gs)
+                const currRes = await fetch(`${API_URL}?action=getCurrency&sheetId=${user.sheetId}`);
+                const currData = await currRes.json();
+                if(currData.status === "Success") {
+                    document.querySelectorAll(".curr-symbol").forEach(s => s.innerText = currData.currSymbol || "");
+                }
+
+                // Fetch Clients (Fixed Undefined Logic)
                 const clientRes = await fetch(`${API_URL}?action=getClients&userId=${user.id}&sheetId=${user.sheetId}`);
                 clientsArray = await clientRes.json();
                 const dataList = document.getElementById("client-list");
                 clientsArray.forEach(c => {
                     const option = document.createElement("option");
-                    option.value = c.name;
+                    // Checks if data is in Client_Name or name property
+                    option.value = c.Client_Name || c.name || ""; 
                     dataList.appendChild(option);
                 });
+
+                // Fetch Saved Items
+                const itemRes = await fetch(`${API_URL}?action=getItems&sheetId=${user.sheetId}`);
+                savedItemsArray = await itemRes.json();
+                const itemDL = document.getElementById("items-list");
+                savedItemsArray.forEach(item => {
+                    const option = document.createElement("option");
+                    option.value = item.name;
+                    itemDL.appendChild(option);
+                });
+
             } catch (e) { console.error(e); }
         };
+
+        function autoFillClient(val) {
+            const found = clientsArray.find(c => (c.Client_Name || c.name) === val);
+            if (found) document.getElementById("client-phone").value = found.phone || "";
+        }
+
+        function autoFillPrice(inputEl) {
+            const found = savedItemsArray.find(i => i.name === inputEl.value);
+            if (found) {
+                const row = inputEl.parentElement.parentElement;
+                row.querySelector(".row-price").value = found.price;
+                calculate();
+            }
+        }
 
         function addNewRow() {
             const tbody = document.getElementById("item-body");
             const tr = document.createElement("tr");
             tr.innerHTML = `
-                <td><input type="text" class="row-desc" placeholder="..."></td>
+                <td><input type="text" class="row-desc" list="items-list" placeholder="..." onchange="autoFillPrice(this)"></td>
                 <td><input type="number" class="row-qty" value="1" oninput="calculate()"></td>
                 <td><input type="number" class="row-price" value="0" oninput="calculate()" onblur="checkAutoRow(this)"></td>
                 <td class="row-amt" style="text-align:right">0.00</td>
@@ -238,18 +263,12 @@
             });
             const taxTotal = (subtotal * taxPercent) / 100;
             const grandTotal = subtotal + taxTotal;
+            const paid = parseFloat(document.getElementById("paid-amount").value) || 0;
             
             document.getElementById("sub-total").innerText = subtotal.toFixed(2);
             document.getElementById("tax-amount").innerText = taxTotal.toFixed(2);
             document.getElementById("grand-total").innerText = grandTotal.toFixed(2);
-
-            // Calculate Balance (Udhaar)
-            const paidValue = document.getElementById("paid-amount").value;
-            const paid = parseFloat(paidValue) || 0;
-            const balance = grandTotal - paid;
-            document.getElementById("balance-amount").innerText = balance.toFixed(2);
-            
-            // Sync the printing span
+            document.getElementById("balance-amount").innerText = (grandTotal - paid).toFixed(2);
             document.getElementById("print-paid-amount").innerText = paid.toFixed(2);
         }
 
@@ -260,11 +279,7 @@
             const grandTotal = parseFloat(document.getElementById("grand-total").innerText);
             const paidAmount = parseFloat(document.getElementById("paid-amount").value) || 0;
             const balanceAmount = grandTotal - paidAmount;
-            
-            // Logic for Status
-            let status = "Paid";
-            if (paidAmount === 0) status = "Unpaid";
-            else if (balanceAmount > 0) status = "Partial";
+            let status = (paidAmount === 0) ? "Unpaid" : (balanceAmount > 0 ? "Partial" : "Paid");
 
             const btn = document.querySelector(".btn-gen");
             btn.disabled = true; btn.innerText = "...";
