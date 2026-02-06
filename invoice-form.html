@@ -200,19 +200,21 @@
 
             // Populate Client Datalist
             const dataList = document.getElementById("client-list");
-            dataList.innerHTML = ""; // Clear old
+            dataList.innerHTML = ""; 
             clientsArray.forEach(c => {
                 const option = document.createElement("option");
+                // Use Name or Client_Name depending on what's available
                 option.value = c.name || c.Client_Name || ""; 
                 dataList.appendChild(option);
             });
 
-            // Populate Items Datalist
+          // Populate Items Datalist
             const itemDL = document.getElementById("items-list");
-            itemDL.innerHTML = ""; // Clear old
+            itemDL.innerHTML = ""; 
             savedItemsArray.forEach(item => {
                 const option = document.createElement("option");
-                option.value = item.name;
+                // Use name or itemName
+                option.value = item.name || item.itemName || "";
                 itemDL.appendChild(option);
             });
 
