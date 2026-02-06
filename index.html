@@ -1,46 +1,154 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>eInvoicer - MultiVendor</title>
     <style>
-        body { font-family: sans-serif; display: flex; justify-content: center; padding: 50px; background: #f4f4f4; }
-        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 300px; }
-        input { width: 100%; padding: 10px; margin: 5px 0; box-sizing: border-box; }
-        button { width: 100%; padding: 10px; background: #2e7d32; color: white; border: none; cursor: pointer; margin-top: 10px; }
+        /* Base Styles */
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 0; 
+            display: flex; 
+            flex-direction: column; 
+            min-height: 100vh; 
+            background: #f4f7f6; 
+        }
+
+        /* Header Panel */
+        header {
+            background: #2e7d32;
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        header h1 { margin: 0; font-size: 24px; }
+
+        /* Main Container */
+        .container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        /* Card Styling */
+        .card { 
+            background: white; 
+            padding: 30px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
+            width: 100%; 
+            max-width: 350px; 
+            transition: all 0.3s ease;
+        }
+        
+        #title { margin-top: 0; color: #333; text-align: center; margin-bottom: 20px; }
+
+        input { 
+            width: 100%; 
+            padding: 12px; 
+            margin: 8px 0; 
+            box-sizing: border-box; 
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        button { 
+            width: 100%; 
+            padding: 12px; 
+            background: #2e7d32; 
+            color: white; 
+            border: none; 
+            border-radius: 6px;
+            cursor: pointer; 
+            margin-top: 15px; 
+            font-size: 16px;
+            font-weight: bold;
+        }
+        button:hover { background: #256629; }
+
         .hidden { display: none; }
-        .toggle { font-size: 12px; color: blue; cursor: pointer; text-align: center; margin-top: 10px; }
+        
+        .toggle { 
+            font-size: 13px; 
+            color: #1976d2; 
+            cursor: pointer; 
+            text-align: center; 
+            margin-top: 15px; 
+            text-decoration: underline;
+        }
+
+        #msg { text-align: center; font-size: 14px; margin-top: 15px; font-weight: 500; }
+
+        /* Footer Panel */
+        footer {
+            background: #333;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .footer-content { margin-bottom: 10px; font-size: 14px; }
+        .copyright { font-size: 12px; color: #bbb; }
+
+        /* Mobile Responsive adjustments */
+        @media (max-width: 480px) {
+            .card { padding: 20px; }
+            header h1 { font-size: 20px; }
+        }
     </style>
 </head>
 <body>
 
-<div class="card" id="authBox">
-    <h2 id="title">eInvoicer Login</h2>
-    
-    <div id="loginFields">
-        <input type="email" id="l_email" placeholder="Email">
-        <input type="password" id="l_pass" placeholder="Password">
-        <button onclick="doLogin()">Login</button>
-        <div class="toggle" onclick="toggleForm()">New user? Sign up</div>
-    </div>
+<header>
+    <h1>eInvoicer Panel</h1>
+</header>
 
-    <div id="signupFields" class="hidden">
-        <input type="text" id="s_name" placeholder="Full Name">
-        <input type="email" id="s_email" placeholder="Email">
-        <input type="password" id="s_pass" placeholder="Password">
-        <input type="text" id="s_phone" placeholder="Phone">
-        <input type="text" id="s_biz" placeholder="Business Name">
-        <label style="font-size: 12px; color: #666; margin-top: 10px; display: block;">Upload Business Logo</label>
-        <input type="file" id="s_logo" accept="image/*" onchange="previewLogo(this)">
-        <div id="logoPreview" style="margin: 5px 0; text-align: center;"></div>
-        <button onclick="doSignup()">Create Account</button>
-        <div class="toggle" onclick="toggleForm()">Back to Login</div>
+<div class="container">
+    <div class="card" id="authBox">
+        <h2 id="title">eInvoicer Login</h2>
+        
+        <div id="loginFields">
+            <input type="email" id="l_email" placeholder="Email">
+            <input type="password" id="l_pass" placeholder="Password">
+            <button onclick="doLogin()">Login</button>
+            <div class="toggle" onclick="toggleForm()">New user? Sign up</div>
+        </div>
+
+        <div id="signupFields" class="hidden">
+            <input type="text" id="s_name" placeholder="Full Name">
+            <input type="email" id="s_email" placeholder="Email">
+            <input type="password" id="s_pass" placeholder="Password">
+            <input type="text" id="s_phone" placeholder="Phone">
+            <input type="text" id="s_biz" placeholder="Business Name">
+            <label style="font-size: 12px; color: #666; margin-top: 10px; display: block; text-align: center;">Upload Business Logo</label>
+            <input type="file" id="s_logo" accept="image/*" onchange="previewLogo(this)">
+            <div id="logoPreview" style="margin: 5px 0; text-align: center;"></div>
+            <button onclick="doSignup()">Create Account</button>
+            <div class="toggle" onclick="toggleForm()">Back to Login</div>
+        </div>
+        
+        <p id="msg"></p>
     </div>
-    
-    <p id="msg"></p>
 </div>
 
+<footer>
+    <div class="footer-content">
+        Simplifying your business invoicing needs.
+    </div>
+    <div class="copyright">
+        Copyright © <span id="year"></span> emahar.com
+    </div>
+</footer>
+
 <script>
-// Replace this with your CURRENT Web App URL
+// Set Current Year
+document.getElementById('year').innerText = new Date().getFullYear();
+
+// Your logic remains untouched
 const API_URL = "https://script.google.com/macros/s/AKfycbwpyyuTtbSv_2udttbXog8oUfq_vgFvr-y7DggVO-WXYkR4APnpB_0BS6TpSZLdnBrN/exec"; 
 
 let globalLogoBase64 = ""; 
@@ -49,6 +157,7 @@ function toggleForm() {
     document.getElementById('loginFields').classList.toggle('hidden');
     document.getElementById('signupFields').classList.toggle('hidden');
     document.getElementById('title').innerText = document.getElementById('loginFields').classList.contains('hidden') ? "eInvoicer Signup" : "eInvoicer Login";
+    document.getElementById("msg").innerText = "";
 }
 
 function previewLogo(input) {
@@ -84,21 +193,23 @@ async function doSignup() {
         logo: globalLogoBase64 
     };
 
+    document.getElementById("msg").style.color = "blue";
     document.getElementById("msg").innerText = "Registering (creating your database)...";
     
     try {
-        // We use mode: 'no-cors' for Google Apps Script POST to avoid redirect errors
         await fetch(API_URL, {
             method: "POST",
             mode: "no-cors", 
             body: JSON.stringify(payload)
         });
 
+        document.getElementById("msg").style.color = "green";
         document.getElementById("msg").innerText = "✅ Signup successful! Please log in.";
         globalLogoBase64 = "";
         document.getElementById('logoPreview').innerHTML = "";
-        toggleForm();
+        setTimeout(toggleForm, 2000);
     } catch (err) {
+        document.getElementById("msg").style.color = "red";
         document.getElementById("msg").innerText = "❌ Error during signup.";
         console.error(err);
     }
@@ -108,6 +219,7 @@ async function doLogin() {
     const email = document.getElementById("l_email").value;
     const pass = document.getElementById("l_pass").value;
     const msg = document.getElementById("msg");
+    msg.style.color = "blue";
     msg.innerText = "Authenticating...";
 
     const loginUrl = `${API_URL}?action=login&email=${encodeURIComponent(email)}&password=${encodeURIComponent(pass)}`;
@@ -117,19 +229,23 @@ async function doLogin() {
         const result = await response.json();
         
         if (result.status === "Success") {
-            // result now contains: id, name, business, logo, AND sheetId
-            // This stores the private sheet ID into local storage automatically
             localStorage.setItem("user", JSON.stringify(result));
-            alert("Success! Welcome " + result.name);
-            window.location.href = "dashboard.html";
+            msg.style.color = "green";
+            msg.innerText = "✅ Success! Redirecting...";
+            setTimeout(() => {
+                window.location.href = "dashboard.html";
+            }, 1000);
         } else {
+            msg.style.color = "red";
             msg.innerText = "❌ Invalid Credentials";
         }
     } catch (error) {
+        msg.style.color = "red";
         msg.innerText = "❌ Connection Error.";
         console.error("Fetch Error:", error);
     }
 }
 </script>
+
 </body>
 </html>
