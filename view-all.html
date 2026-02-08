@@ -107,6 +107,7 @@
                 const response = await fetch(`${DATA_API_URL}?action=getInvoices&userId=${user.id}&sheetId=${user.sheetId}`);
                 const data = await response.json();
                 
+                // FIXED COLUMN MAPPING TO MATCH YOUR SHEET
                 cachedInvoices = data.map(row => ({
                     invoiceId: row.Invoice_ID, 
                     clientName: row.Client_Name,
@@ -124,7 +125,10 @@
 
                 const lang = localStorage.getItem("dashboardLang") || "en";
                 cachedInvoices.forEach(inv => {
-                    const statusClass = `status-${inv.status.toLowerCase()}`;
+                    // Logic to ensure status class works even if status has spaces
+                    const statusKey = (inv.status || "Paid").toLowerCase().trim();
+                    const statusClass = `status-${statusKey}`;
+                    
                     const tr = document.createElement("tr");
                     tr.innerHTML = `
                         <td>${inv.date}</td>
@@ -147,11 +151,19 @@
         }
 
         function generatePDF(id) {
-            const inv = cachedInvoices.find(i => i.invoiceId === id);
-            if (!inv) return;
+            // Finding by invoiceId now works because mapping is corrected
+            const inv = cachedInvoices.find(i => String(i.invoiceId) === String(id));
+            if (!inv) {
+                alert("Invoice data not found");
+                return;
+            }
             const lang = localStorage.getItem("dashboardLang") || "en";
             const t = i18n[lang];
-            let items = JSON.parse(inv.items);
+            let items = [];
+            try {
+                items = JSON.parse(inv.items);
+            } catch(e) { items = []; }
+
             let rows = "";
             items.forEach(i => { 
                 rows += `<tr><td>${i.description}</td><td>${i.qty}</td><td>${i.price}</td><td align="right">${parseFloat(i.amount).toFixed(2)}</td></tr>`; 
@@ -160,7 +172,6 @@
             const dir = lang === 'ur' ? 'rtl' : 'ltr';
             const align = lang === 'ur' ? 'right' : 'left';
 
-            // ONLY ADDITION: Prepare logo HTML if it exists in user data
             let logoImg = "";
             if(user.logo) {
                 logoImg = `<img src="${user.logo}" style="max-height:70px; margin-bottom:10px;">`;
@@ -191,7 +202,7 @@
         }
 
         async function handleShare(id, platform) {
-            const inv = cachedInvoices.find(i => i.invoiceId === id);
+            const inv = cachedInvoices.find(i => String(i.invoiceId) === String(id));
             if (!inv) return;
             const lang = localStorage.getItem("dashboardLang") || "en";
             const t = i18n[lang];
