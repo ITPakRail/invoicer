@@ -35,7 +35,7 @@
         .delete-btn { color: red; cursor: pointer; font-weight: bold; border: none; background: none; }
         .print-only { display: none; }
 
-        /* Conditional Hiding for Print */
+        /* Logic to hide rows if zero during print */
         .hide-on-print { display: none !important; }
 
         @media print {
@@ -92,12 +92,12 @@
             <span><span class="curr-symbol"></span> <span id="sub-total">0.00</span></span>
         </div>
 
-        <div class="total-row" id="discount-row-container">
-            <span><span data-key="lblDiscount">Discount</span> (<input type="number" id="discount-percent" class="no-print" style="width:40px; border-bottom:1px solid #ddd" value="0" oninput="calculate()">%):</span>
+        <div class="total-row" id="discount-row">
+            <span><span data-key="lblDiscount">Discount</span> (<input type="number" id="discount-percent" class="no-print" style="width:45px; border-bottom:1px solid #3498db" value="0" oninput="calculate()">%):</span>
             <span><span class="curr-symbol"></span> <span id="discount-amount">0.00</span></span>
         </div>
 
-        <div class="total-row" id="tax-row-container">
+        <div class="total-row" id="tax-row">
             <span><span data-key="lblTax">Tax</span> (<span id="tax-rate-display">0</span>%):</span>
             <span><span class="curr-symbol"></span> <span id="tax-amount">0.00</span></span>
         </div>
@@ -135,18 +135,16 @@
                 invIdLabel: "Invoice ID:", dateLabel: "Date:", clientLabel: "Client Name:", 
                 phoneLabel: "Phone (Optional):", thDesc: "Description", thQty: "Qty", 
                 thPrice: "Price", thAmt: "Amount", lblSub: "Subtotal:", lblTax: "Tax", 
-                lblDiscount: "Discount", // Added
-                lblGrand: "Grand Total:", lblPaid: "Amount Received:", lblBalance: "Balance:",
-                btnSave: "Generate & Save Invoice",
+                lblDiscount: "Discount", lblGrand: "Grand Total:", lblPaid: "Amount Received:", 
+                lblBalance: "Balance:", btnSave: "Generate & Save Invoice",
                 clientPlace: "Select or Type Client Name", phonePlace: "e.g. 923001234567"
             },
             ur: {
                 invIdLabel: "انوائس نمبر:", dateLabel: "تاریخ:", clientLabel: "کلائنٹ کا نام:", 
                 phoneLabel: "فون (اختیاری):", thDesc: "تفصیل", thQty: "تعداد", 
                 thPrice: "قیمت", thAmt: "رقم", lblSub: "رقم:", lblTax: "ٹیکس", 
-                lblDiscount: "رعایت", // Added
-                lblGrand: "کل رقم:", lblPaid: "وصول شدہ رقم:", lblBalance: "بقایا (ادھار):",
-                btnSave: "انوائس محفوظ کریں",
+                lblDiscount: "رعایت", lblGrand: "کل رقم:", lblPaid: "وصول شدہ رقم:", 
+                lblBalance: "بقایا (ادھار):", btnSave: "انوائس محفوظ کریں",
                 clientPlace: "کلائنٹ کا نام منتخب کریں", phonePlace: "مثلاً 923001234567"
             }
         };
@@ -204,6 +202,7 @@
                 bLogo.style.display = "block";
             }
 
+            // Using original names for loading memory
             clientsArray = JSON.parse(localStorage.getItem("clients") || "[]");
             savedItemsArray = JSON.parse(localStorage.getItem("items") || "[]");
 
@@ -294,26 +293,26 @@
                 subtotal += amt;
             });
 
-            // Discount Calculation
+            // Discount logic
             const discPercent = parseFloat(document.getElementById("discount-percent").value) || 0;
-            const discTotal = (subtotal * discPercent) / 100;
-
-            // Tax Calculation (on subtotal before discount or after? Usually before for trade discount, after for some regions. Using before here as requested)
-            const taxTotal = (subtotal * taxPercent) / 100;
+            const discAmount = (subtotal * discPercent) / 100;
             
-            const grandTotal = subtotal + taxTotal - discTotal;
+            // Tax logic
+            const taxAmount = (subtotal * taxPercent) / 100;
+            
+            const grandTotal = subtotal + taxAmount - discAmount;
             const paid = parseFloat(document.getElementById("paid-amount").value) || 0;
             
             document.getElementById("sub-total").innerText = subtotal.toFixed(2);
-            document.getElementById("tax-amount").innerText = taxTotal.toFixed(2);
-            document.getElementById("discount-amount").innerText = discTotal.toFixed(2);
+            document.getElementById("discount-amount").innerText = discAmount.toFixed(2);
+            document.getElementById("tax-amount").innerText = taxAmount.toFixed(2);
             document.getElementById("grand-total").innerText = grandTotal.toFixed(2);
             document.getElementById("balance-amount").innerText = (grandTotal - paid).toFixed(2);
             document.getElementById("print-paid-amount").innerText = paid.toFixed(2);
 
-            // Print hiding logic
-            document.getElementById("tax-row-container").classList.toggle("hide-on-print", taxTotal <= 0);
-            document.getElementById("discount-row-container").classList.toggle("hide-on-print", discTotal <= 0);
+            // Hide rows for print if values are zero
+            document.getElementById("discount-row").classList.toggle("hide-on-print", discAmount <= 0);
+            document.getElementById("tax-row").classList.toggle("hide-on-print", taxAmount <= 0);
         }
 
         async function submitInvoice() {
@@ -351,7 +350,7 @@
                 date: document.getElementById("display-date").innerText,
                 subtotal: document.getElementById("sub-total").innerText,
                 taxAmount: document.getElementById("tax-amount").innerText,
-                discountAmount: document.getElementById("discount-amount").innerText, // Added
+                discountAmount: document.getElementById("discount-amount").innerText,
                 total: grandTotal.toFixed(2),
                 items: items,
                 paidAmount: paidAmount.toFixed(2),
