@@ -18,7 +18,7 @@
         
         table { width: 100%; border-collapse: collapse; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
         th { background: #2c3e50; color: white; padding: 15px; text-align: left; }
-        td { padding: 12px; border-bottom: 1px solid #eee; vertical-align: top; }
+        td { padding: 12px; border-bottom: 1px solid #eee; }
         
         .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
         .status-paid { background: #d4edda; color: #155724; }
@@ -107,26 +107,17 @@
                 const response = await fetch(`${DATA_API_URL}?action=getInvoices&userId=${user.id}&sheetId=${user.sheetId}`);
                 const data = await response.json();
                 
-                // ROBUST MAPPING: Handles case differences in sheet headers
-                cachedInvoices = data.map(row => {
-                    // Helper to find value regardless of header case (Invoice_ID vs invoice_id)
-                    const getVal = (key) => {
-                        const foundKey = Object.keys(row).find(k => k.toLowerCase().trim() === key.toLowerCase());
-                        return foundKey ? row[foundKey] : "";
-                    };
-
-                    return {
-                        invoiceId: getVal("Invoice_ID"), 
-                        clientName: getVal("Client_Name"),
-                        clientPhone: getVal("Client_Phone"), 
-                        date: getVal("Date"),
-                        total: getVal("Total_Amount") || 0, 
-                        items: getVal("Items_JSON") || "[]",
-                        paidAmount: getVal("Paid_Amount") || 0, 
-                        balanceAmount: getVal("Balance_Amount") || 0,
-                        status: getVal("Status") || "Paid"
-                    };
-                });
+                cachedInvoices = data.map(row => ({
+                    invoiceId: row.Invoice_ID, 
+                    clientName: row.Client_Name,
+                    clientPhone: row.Client_Phone || "", 
+                    date: row.Date,
+                    total: row.Total_Amount || 0, 
+                    items: row.Items_JSON || "[]",
+                    paidAmount: row.Paid_Amount || 0, 
+                    balanceAmount: row.Balance_Amount || 0,
+                    status: row.Status || "Paid"
+                }));
 
                 document.getElementById("loader").classList.add("hidden");
                 document.getElementById("invTable").classList.remove("hidden");
@@ -142,8 +133,8 @@
                         <td><strong>${inv.invoiceId}</strong></td>
                         <td>${inv.clientName}<br><small>${inv.clientPhone || i18n[lang].noPhone}</small></td>
                         <td>
-                            <strong>${parseFloat(inv.total || 0).toFixed(2)}</strong><br>
-                            <small style="color:#e74c3c">${i18n[lang].thBal}: ${parseFloat(inv.balanceAmount || 0).toFixed(2)}</small>
+                            <strong>${parseFloat(inv.total).toFixed(2)}</strong><br>
+                            <small style="color:#e74c3c">${i18n[lang].thBal}: ${parseFloat(inv.balanceAmount).toFixed(2)}</small>
                         </td>
                         <td><span class="badge ${statusClass}">${inv.status}</span></td>
                         <td>
@@ -154,31 +145,24 @@
                     `;
                     tbody.appendChild(tr);
                 });
-            } catch (err) { 
-                console.error(err);
-                document.getElementById("loader").innerText = "⚠️ Error loading data."; 
-            }
+            } catch (err) { document.getElementById("loader").innerText = "⚠️ Error loading data."; }
         }
 
         function generatePDF(id) {
             const inv = cachedInvoices.find(i => String(i.invoiceId) === String(id));
-            if (!inv) {
-                alert("Invoice data not found");
-                return;
-            }
+            if (!inv) return;
             const lang = localStorage.getItem("dashboardLang") || "en";
             const t = i18n[lang];
+            
             let items = [];
             try {
-                items = typeof inv.items === 'string' ? JSON.parse(inv.items) : inv.items;
-            } catch(e) { items = []; }
+                items = (typeof inv.items === 'string') ? JSON.parse(inv.items) : inv.items;
+            } catch(e) { console.error("Parse Error", e); }
 
             let rows = "";
-            if (Array.isArray(items)) {
-                items.forEach(i => { 
-                    rows += `<tr><td>${i.description || i.item || ''}</td><td>${i.qty || 0}</td><td>${i.price || 0}</td><td align="right">${parseFloat(i.amount || 0).toFixed(2)}</td></tr>`; 
-                });
-            }
+            items.forEach(i => { 
+                rows += `<tr><td>${i.description || i.Description || '-'}</td><td>${i.qty || i.Qty || 0}</td><td>${i.price || i.Price || 0}</td><td align="right">${parseFloat(i.amount || 0).toFixed(2)}</td></tr>`; 
+            });
 
             const dir = lang === 'ur' ? 'rtl' : 'ltr';
             const align = lang === 'ur' ? 'right' : 'left';
@@ -194,15 +178,15 @@
                 th{background:#f4f4f4}
             </style></head><body>
                 ${logoImg}
-                <h2 style="margin-top:0;">${user.business || 'Invoice'}</h2>
+                <h2 style="margin-top:0;">${user.business}</h2>
                 <p>${t.thInvId}: ${inv.invoiceId} | ${t.thDate}: ${inv.date}</p>
                 <p><strong>${t.thClient}:</strong> ${inv.clientName}</p>
                 <table><thead><tr><th>${t.thDesc}</th><th>${t.thQty}</th><th>${t.thPrice}</th><th>${t.thTotal}</th></tr></thead>
                 <tbody>${rows}</tbody></table>
                 <div style="margin-top:20px; text-align:${lang === 'ur' ? 'left' : 'right'}">
-                    <p>${t.thTotal}: ${parseFloat(inv.total || 0).toFixed(2)}</p>
-                    <p>${t.thPaid}: ${parseFloat(inv.paidAmount || 0).toFixed(2)}</p>
-                    <h3>${t.thBal}: ${parseFloat(inv.balanceAmount || 0).toFixed(2)}</h3>
+                    <p>${t.thTotal}: ${parseFloat(inv.total).toFixed(2)}</p>
+                    <p>${t.thPaid}: ${parseFloat(inv.paidAmount).toFixed(2)}</p>
+                    <h3>${t.thBal}: ${parseFloat(inv.balanceAmount).toFixed(2)}</h3>
                 </div>
                 <script>window.onload=function(){window.print();window.close();}<\/script>
             </body></html>`);
@@ -215,10 +199,10 @@
             const lang = localStorage.getItem("dashboardLang") || "en";
             const t = i18n[lang];
 
-            const msg = `${t.thInvId}: ${inv.invoiceId}\n${t.thTotal}: ${inv.total}\n${t.thBal}: ${inv.balanceAmount}`;
+            const msg = `${t.thInvId}: ${inv.invoiceId}\n${t.thTotal}: ${inv.total}\n${t.thPaid}: ${inv.paidAmount}\n${t.thBal}: ${inv.balanceAmount}`;
             
             if (platform === 'wa') {
-                const cleanPhone = String(inv.clientPhone || "").replace(/\D/g, '');
+                const cleanPhone = String(inv.clientPhone).replace(/\D/g, '');
                 window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`, '_blank');
             } else {
                 window.location.href = `mailto:?subject=Invoice ${inv.invoiceId}&body=${encodeURIComponent(msg)}`;
