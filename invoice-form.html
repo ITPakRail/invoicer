@@ -8,7 +8,6 @@
         body.rtl-mode { font-family: 'Noto Nastaliq Urdu', serif; direction: rtl; }
         body.rtl-mode input { font-family: 'Noto Nastaliq Urdu', serif; text-align: right; }
 
-        /* Branding Styles */
         .brand-section { margin-bottom: 20px; text-align: left; }
         body.rtl-mode .brand-section { text-align: right; }
         #business-logo { max-width: 150px; max-height: 80px; display: none; margin-bottom: 5px; object-fit: contain; }
@@ -35,6 +34,9 @@
         .btn-gen:hover { background: #219150; }
         .delete-btn { color: red; cursor: pointer; font-weight: bold; border: none; background: none; }
         .print-only { display: none; }
+
+        /* Conditional Hiding for Print */
+        .hide-on-print { display: none !important; }
 
         @media print {
             .btn-gen, .delete-btn, #item-body tr td:last-child, th:last-child, .no-print { display: none !important; }
@@ -89,10 +91,17 @@
             <span data-key="lblSub">Subtotal:</span>
             <span><span class="curr-symbol"></span> <span id="sub-total">0.00</span></span>
         </div>
-        <div class="total-row">
+
+        <div class="total-row" id="discount-row-container">
+            <span><span data-key="lblDiscount">Discount</span> (<input type="number" id="discount-percent" class="no-print" style="width:40px; border-bottom:1px solid #ddd" value="0" oninput="calculate()">%):</span>
+            <span><span class="curr-symbol"></span> <span id="discount-amount">0.00</span></span>
+        </div>
+
+        <div class="total-row" id="tax-row-container">
             <span><span data-key="lblTax">Tax</span> (<span id="tax-rate-display">0</span>%):</span>
             <span><span class="curr-symbol"></span> <span id="tax-amount">0.00</span></span>
         </div>
+
         <div class="total-row grand-total-row">
             <span data-key="lblGrand">Grand Total:</span>
             <span><span class="curr-symbol"></span> <span id="grand-total">0.00</span></span>
@@ -126,6 +135,7 @@
                 invIdLabel: "Invoice ID:", dateLabel: "Date:", clientLabel: "Client Name:", 
                 phoneLabel: "Phone (Optional):", thDesc: "Description", thQty: "Qty", 
                 thPrice: "Price", thAmt: "Amount", lblSub: "Subtotal:", lblTax: "Tax", 
+                lblDiscount: "Discount", // Added
                 lblGrand: "Grand Total:", lblPaid: "Amount Received:", lblBalance: "Balance:",
                 btnSave: "Generate & Save Invoice",
                 clientPlace: "Select or Type Client Name", phonePlace: "e.g. 923001234567"
@@ -134,6 +144,7 @@
                 invIdLabel: "انوائس نمبر:", dateLabel: "تاریخ:", clientLabel: "کلائنٹ کا نام:", 
                 phoneLabel: "فون (اختیاری):", thDesc: "تفصیل", thQty: "تعداد", 
                 thPrice: "قیمت", thAmt: "رقم", lblSub: "رقم:", lblTax: "ٹیکس", 
+                lblDiscount: "رعایت", // Added
                 lblGrand: "کل رقم:", lblPaid: "وصول شدہ رقم:", lblBalance: "بقایا (ادھار):",
                 btnSave: "انوائس محفوظ کریں",
                 clientPlace: "کلائنٹ کا نام منتخب کریں", phonePlace: "مثلاً 923001234567"
@@ -185,7 +196,6 @@
             
             if (!user) return alert("Session expired.");
 
-            // 1. Branding
             const bName = document.getElementById("business-name");
             const bLogo = document.getElementById("business-logo");
             bName.innerText = user.business || "My Business";
@@ -194,34 +204,27 @@
                 bLogo.style.display = "block";
             }
 
-            // 2. Load Clients & Items FROM MEMORY (Instant)
             clientsArray = JSON.parse(localStorage.getItem("clients") || "[]");
             savedItemsArray = JSON.parse(localStorage.getItem("items") || "[]");
 
-            // Populate Client Datalist
             const dataList = document.getElementById("client-list");
             dataList.innerHTML = ""; 
             clientsArray.forEach(c => {
                 const option = document.createElement("option");
-                // Use Name or Client_Name depending on what's available
                 option.value = c.name || c.Client_Name || ""; 
                 dataList.appendChild(option);
             });
 
-          // Populate Items Datalist
             const itemDL = document.getElementById("items-list");
             itemDL.innerHTML = ""; 
             savedItemsArray.forEach(item => {
                 const option = document.createElement("option");
-                // Use name or itemName
                 option.value = item.name || item.itemName || "";
                 itemDL.appendChild(option);
             });
 
             addNewRow(); 
 
-            // 3. Fetch specific dynamic data (ID, Tax, Currency)
-            // These are small and change frequently, so we still fetch them or cache if preferred
             try {
                 const idRes = await fetch(`${API_URL}?action=getNextId&sheetId=${user.sheetId}`);
                 const idData = await idRes.json();
@@ -242,7 +245,6 @@
             } catch (e) { console.error("Error loading settings:", e); }
         };
 
-        // Optimized Auto-Fill using local memory
         function autoFillClient(val) {
             const found = clientsArray.find(c => (c.name === val || c.Client_Name === val));
             if (found) {
@@ -287,19 +289,31 @@
         function calculate() {
             let subtotal = 0;
             document.querySelectorAll("#item-body tr").forEach(row => {
-                const amt = (row.querySelector(".row-qty").value || 0) * (row.querySelector(".row-price").value || 0);
+                const amt = (parseFloat(row.querySelector(".row-qty").value) || 0) * (parseFloat(row.querySelector(".row-price").value) || 0);
                 row.querySelector(".row-amt").innerText = amt.toFixed(2);
                 subtotal += amt;
             });
+
+            // Discount Calculation
+            const discPercent = parseFloat(document.getElementById("discount-percent").value) || 0;
+            const discTotal = (subtotal * discPercent) / 100;
+
+            // Tax Calculation (on subtotal before discount or after? Usually before for trade discount, after for some regions. Using before here as requested)
             const taxTotal = (subtotal * taxPercent) / 100;
-            const grandTotal = subtotal + taxTotal;
+            
+            const grandTotal = subtotal + taxTotal - discTotal;
             const paid = parseFloat(document.getElementById("paid-amount").value) || 0;
             
             document.getElementById("sub-total").innerText = subtotal.toFixed(2);
             document.getElementById("tax-amount").innerText = taxTotal.toFixed(2);
+            document.getElementById("discount-amount").innerText = discTotal.toFixed(2);
             document.getElementById("grand-total").innerText = grandTotal.toFixed(2);
             document.getElementById("balance-amount").innerText = (grandTotal - paid).toFixed(2);
             document.getElementById("print-paid-amount").innerText = paid.toFixed(2);
+
+            // Print hiding logic
+            document.getElementById("tax-row-container").classList.toggle("hide-on-print", taxTotal <= 0);
+            document.getElementById("discount-row-container").classList.toggle("hide-on-print", discTotal <= 0);
         }
 
         async function submitInvoice() {
@@ -337,6 +351,7 @@
                 date: document.getElementById("display-date").innerText,
                 subtotal: document.getElementById("sub-total").innerText,
                 taxAmount: document.getElementById("tax-amount").innerText,
+                discountAmount: document.getElementById("discount-amount").innerText, // Added
                 total: grandTotal.toFixed(2),
                 items: items,
                 paidAmount: paidAmount.toFixed(2),
