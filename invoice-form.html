@@ -35,8 +35,8 @@
         .delete-btn { color: red; cursor: pointer; font-weight: bold; border: none; background: none; }
         .print-only { display: none; }
 
-        /* Logic to hide rows if zero during print */
-        .hide-on-print { display: none !important; }
+        /* This class will only be applied right before printing */
+        .hide-for-print { display: none !important; }
 
         @media print {
             .btn-gen, .delete-btn, #item-body tr td:last-child, th:last-child, .no-print { display: none !important; }
@@ -202,7 +202,6 @@
                 bLogo.style.display = "block";
             }
 
-            // Using original names for loading memory
             clientsArray = JSON.parse(localStorage.getItem("clients") || "[]");
             savedItemsArray = JSON.parse(localStorage.getItem("items") || "[]");
 
@@ -293,11 +292,8 @@
                 subtotal += amt;
             });
 
-            // Discount logic
             const discPercent = parseFloat(document.getElementById("discount-percent").value) || 0;
             const discAmount = (subtotal * discPercent) / 100;
-            
-            // Tax logic
             const taxAmount = (subtotal * taxPercent) / 100;
             
             const grandTotal = subtotal + taxAmount - discAmount;
@@ -309,10 +305,6 @@
             document.getElementById("grand-total").innerText = grandTotal.toFixed(2);
             document.getElementById("balance-amount").innerText = (grandTotal - paid).toFixed(2);
             document.getElementById("print-paid-amount").innerText = paid.toFixed(2);
-
-            // Hide rows for print if values are zero
-            document.getElementById("discount-row").classList.toggle("hide-on-print", discAmount <= 0);
-            document.getElementById("tax-row").classList.toggle("hide-on-print", taxAmount <= 0);
         }
 
         async function submitInvoice() {
@@ -321,8 +313,14 @@
             
             const grandTotal = parseFloat(document.getElementById("grand-total").innerText);
             const paidAmount = parseFloat(document.getElementById("paid-amount").value) || 0;
+            const discAmt = parseFloat(document.getElementById("discount-amount").innerText);
+            const taxAmt = parseFloat(document.getElementById("tax-amount").innerText);
             const balanceAmount = grandTotal - paidAmount;
             let status = (paidAmount === 0) ? "Unpaid" : (balanceAmount > 0 ? "Partial" : "Paid");
+
+            // LOGIC: Check if 0 and add HIDING CLASS before printing
+            if(discAmt <= 0) document.getElementById("discount-row").classList.add("hide-for-print");
+            if(taxAmt <= 0) document.getElementById("tax-row").classList.add("hide-for-print");
 
             const btn = document.querySelector(".btn-gen");
             btn.disabled = true; btn.innerText = "...";
@@ -349,8 +347,8 @@
                 clientPhone: document.getElementById("client-phone").value,
                 date: document.getElementById("display-date").innerText,
                 subtotal: document.getElementById("sub-total").innerText,
-                taxAmount: document.getElementById("tax-amount").innerText,
-                discountAmount: document.getElementById("discount-amount").innerText,
+                taxAmount: taxAmt.toFixed(2),
+                discountAmount: discAmt.toFixed(2),
                 total: grandTotal.toFixed(2),
                 items: items,
                 paidAmount: paidAmount.toFixed(2),
@@ -362,6 +360,11 @@
                 await fetch(API_URL, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) });
                 alert("✅ Invoice Saved!");
                 window.print();
+                
+                // Remove the hiding classes after print so the screen looks normal again
+                document.getElementById("discount-row").classList.remove("hide-for-print");
+                document.getElementById("tax-row").classList.remove("hide-for-print");
+                
                 window.location.reload(); 
             } catch (err) {
                 alert("Error saving invoice.");
