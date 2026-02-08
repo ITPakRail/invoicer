@@ -59,6 +59,7 @@
     </table>
 
     <script>
+        // Use your actual Web App URL here
         const DATA_API_URL = "https://script.google.com/macros/s/AKfycbwpyyuTtbSv_2udttbXog8oUfq_vgFvr-y7DggVO-WXYkR4APnpB_0BS6TpSZLdnBrN/exec"; 
         const user = JSON.parse(localStorage.getItem("user"));
         let cachedInvoices = [];
@@ -107,40 +108,32 @@
                 const response = await fetch(`${DATA_API_URL}?action=getInvoices&userId=${user.id}&sheetId=${user.sheetId}`);
                 const data = await response.json();
                 
-                cachedInvoices = data.map(row => ({
-                    invoiceId: row.Invoice_ID, 
-                    clientName: row.Client_Name,
-                    clientPhone: row.Client_Phone || "", 
-                    date: row.Date,
-                    total: row.Total_Amount || 0, 
-                    items: row.Items_JSON || "[]",
-                    paidAmount: row.Paid_Amount || 0, 
-                    balanceAmount: row.Balance_Amount || 0,
-                    status: row.Status || "Paid"
-                }));
+                // Mapped to your specific GAS column indices
+                cachedInvoices = data; 
 
                 document.getElementById("loader").classList.add("hidden");
                 document.getElementById("invTable").classList.remove("hidden");
 
                 const lang = localStorage.getItem("dashboardLang") || "en";
                 cachedInvoices.forEach(inv => {
-                    const statusKey = String(inv.status).toLowerCase().trim();
-                    const statusClass = `status-${statusKey}`;
+                    // Check status and handle case sensitivity
+                    const statusText = inv.Status || "Unpaid";
+                    const statusClass = `status-${statusText.toLowerCase()}`;
                     
                     const tr = document.createElement("tr");
                     tr.innerHTML = `
-                        <td>${inv.date}</td>
-                        <td><strong>${inv.invoiceId}</strong></td>
-                        <td>${inv.clientName}<br><small>${inv.clientPhone || i18n[lang].noPhone}</small></td>
+                        <td>${inv.Date}</td>
+                        <td><strong>${inv.Invoice_ID}</strong></td>
+                        <td>${inv.Client_Name}<br><small>${inv.Client_Phone || i18n[lang].noPhone}</small></td>
                         <td>
-                            <strong>${parseFloat(inv.total).toFixed(2)}</strong><br>
-                            <small style="color:#e74c3c">${i18n[lang].thBal}: ${parseFloat(inv.balanceAmount).toFixed(2)}</small>
+                            <strong>${parseFloat(inv.Total_Amount || 0).toFixed(2)}</strong><br>
+                            <small style="color:#e74c3c">${i18n[lang].thBal}: ${parseFloat(inv.Balance_Amount || 0).toFixed(2)}</small>
                         </td>
-                        <td><span class="badge ${statusClass}">${inv.status}</span></td>
+                        <td><span class="badge ${statusClass}">${statusText}</span></td>
                         <td>
-                            <button class="btn btn-print" onclick="generatePDF('${inv.invoiceId}')">${i18n[lang].btnPrint}</button>
-                            <button class="btn btn-wa" onclick="handleShare('${inv.invoiceId}', 'wa')">${i18n[lang].btnWA}</button>
-                            <button class="btn btn-mail" onclick="handleShare('${inv.invoiceId}', 'mail')">${i18n[lang].btnMail}</button>
+                            <button class="btn btn-print" onclick="generatePDF('${inv.Invoice_ID}')">${i18n[lang].btnPrint}</button>
+                            <button class="btn btn-wa" onclick="handleShare('${inv.Invoice_ID}', 'wa')">${i18n[lang].btnWA}</button>
+                            <button class="btn btn-mail" onclick="handleShare('${inv.Invoice_ID}', 'mail')">${i18n[lang].btnMail}</button>
                         </td>
                     `;
                     tbody.appendChild(tr);
@@ -149,24 +142,30 @@
         }
 
         function generatePDF(id) {
-            const inv = cachedInvoices.find(i => String(i.invoiceId) === String(id));
+            const inv = cachedInvoices.find(i => String(i.Invoice_ID) === String(id));
             if (!inv) return;
             const lang = localStorage.getItem("dashboardLang") || "en";
             const t = i18n[lang];
             
             let items = [];
             try {
-                items = (typeof inv.items === 'string') ? JSON.parse(inv.items) : inv.items;
-            } catch(e) { console.error("Parse Error", e); }
+                items = (typeof inv.Items_JSON === 'string') ? JSON.parse(inv.Items_JSON) : inv.Items_JSON;
+            } catch(e) { console.error("JSON Error", e); }
 
             let rows = "";
-            items.forEach(i => { 
-                rows += `<tr><td>${i.description || i.Description || '-'}</td><td>${i.qty || i.Qty || 0}</td><td>${i.price || i.Price || 0}</td><td align="right">${parseFloat(i.amount || 0).toFixed(2)}</td></tr>`; 
-            });
+            if(Array.isArray(items)) {
+                items.forEach(i => { 
+                    // Handles both lowercase and uppercase keys from JSON
+                    const d = i.description || i.Description || "-";
+                    const q = i.qty || i.Qty || 0;
+                    const p = i.price || i.Price || 0;
+                    const a = i.amount || i.Amount || (q * p);
+                    rows += `<tr><td>${d}</td><td>${q}</td><td>${p}</td><td align="right">${parseFloat(a).toFixed(2)}</td></tr>`; 
+                });
+            }
 
             const dir = lang === 'ur' ? 'rtl' : 'ltr';
             const align = lang === 'ur' ? 'right' : 'left';
-
             let logoImg = user.logo ? `<img src="${user.logo}" style="max-height:70px; margin-bottom:10px;">` : "";
 
             const printWin = window.open('', '_blank');
@@ -176,17 +175,18 @@
                 table{width:100%; border-collapse:collapse; margin-top:20px} 
                 th,td{border:1px solid #ddd; padding:10px; text-align:${align}} 
                 th{background:#f4f4f4}
+                .summary-box { margin-top:20px; text-align:${lang === 'ur' ? 'left' : 'right'} }
             </style></head><body>
                 ${logoImg}
                 <h2 style="margin-top:0;">${user.business}</h2>
-                <p>${t.thInvId}: ${inv.invoiceId} | ${t.thDate}: ${inv.date}</p>
-                <p><strong>${t.thClient}:</strong> ${inv.clientName}</p>
+                <p>${t.thInvId}: ${inv.Invoice_ID} | ${t.thDate}: ${inv.Date}</p>
+                <p><strong>${t.thClient}:</strong> ${inv.Client_Name}</p>
                 <table><thead><tr><th>${t.thDesc}</th><th>${t.thQty}</th><th>${t.thPrice}</th><th>${t.thTotal}</th></tr></thead>
                 <tbody>${rows}</tbody></table>
-                <div style="margin-top:20px; text-align:${lang === 'ur' ? 'left' : 'right'}">
-                    <p>${t.thTotal}: ${parseFloat(inv.total).toFixed(2)}</p>
-                    <p>${t.thPaid}: ${parseFloat(inv.paidAmount).toFixed(2)}</p>
-                    <h3>${t.thBal}: ${parseFloat(inv.balanceAmount).toFixed(2)}</h3>
+                <div class="summary-box">
+                    <p>${t.thTotal}: ${parseFloat(inv.Total_Amount).toFixed(2)}</p>
+                    <p>${t.thPaid}: ${parseFloat(inv.Paid_Amount).toFixed(2)}</p>
+                    <h3>${t.thBal}: ${parseFloat(inv.Balance_Amount).toFixed(2)}</h3>
                 </div>
                 <script>window.onload=function(){window.print();window.close();}<\/script>
             </body></html>`);
@@ -194,18 +194,17 @@
         }
 
         async function handleShare(id, platform) {
-            const inv = cachedInvoices.find(i => String(i.invoiceId) === String(id));
+            const inv = cachedInvoices.find(i => String(i.Invoice_ID) === String(id));
             if (!inv) return;
             const lang = localStorage.getItem("dashboardLang") || "en";
             const t = i18n[lang];
-
-            const msg = `${t.thInvId}: ${inv.invoiceId}\n${t.thTotal}: ${inv.total}\n${t.thPaid}: ${inv.paidAmount}\n${t.thBal}: ${inv.balanceAmount}`;
+            const msg = `${t.thInvId}: ${inv.Invoice_ID}\n${t.thTotal}: ${inv.Total_Amount}\n${t.thBal}: ${inv.Balance_Amount}`;
             
             if (platform === 'wa') {
-                const cleanPhone = String(inv.clientPhone).replace(/\D/g, '');
+                const cleanPhone = String(inv.Client_Phone).replace(/\D/g, '');
                 window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`, '_blank');
             } else {
-                window.location.href = `mailto:?subject=Invoice ${inv.invoiceId}&body=${encodeURIComponent(msg)}`;
+                window.location.href = `mailto:?subject=Invoice ${inv.Invoice_ID}&body=${encodeURIComponent(msg)}`;
             }
         }
 
