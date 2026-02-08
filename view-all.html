@@ -71,7 +71,8 @@
                 thClient: "Client Name", thTotal: "Grand Total", thActions: "Actions",
                 thStatus: "Status", thPaid: "Received", thBal: "Balance",
                 btnPrint: "PDF", btnWA: "WhatsApp", btnMail: "Email", noPhone: "No Phone",
-                thDesc: "Description", thQty: "Qty", thPrice: "Price"
+                thDesc: "Description", thQty: "Qty", thPrice: "Price",
+                thSubTotal: "Sub Total", thTax: "Tax", thDiscount: "Discount"
             },
             ur: {
                 searchPlace: "🔍 تلاش کریں...", btnRefresh: "🔄 ریفریش",
@@ -79,7 +80,8 @@
                 thClient: "کلائنٹ کا نام", thTotal: "کل رقم", thActions: "ایکشنز",
                 thStatus: "حالت", thPaid: "وصول شدہ", thBal: "بقایا",
                 btnPrint: "پی ڈی ایف", btnWA: "واٹس ایپ", btnMail: "ای میل", noPhone: "فون نمبر نہیں ہے",
-                thDesc: "تفصیل", thQty: "تعداد", thPrice: "قیمت"
+                thDesc: "تفصیل", thQty: "تعداد", thPrice: "قیمت",
+                thSubTotal: "سب ٹوٹل", thTax: "ٹیکس", thDiscount: "ڈسکاؤنٹ"
             }
         };
 
@@ -108,7 +110,6 @@
                 const response = await fetch(`${DATA_API_URL}?action=getInvoices&userId=${user.id}&sheetId=${user.sheetId}`);
                 const data = await response.json();
                 
-                // Mapped to your specific GAS column indices
                 cachedInvoices = data; 
 
                 document.getElementById("loader").classList.add("hidden");
@@ -116,7 +117,6 @@
 
                 const lang = localStorage.getItem("dashboardLang") || "en";
                 cachedInvoices.forEach(inv => {
-                    // Check status and handle case sensitivity
                     const statusText = inv.Status || "Unpaid";
                     const statusClass = `status-${statusText.toLowerCase()}`;
                     
@@ -155,7 +155,6 @@
             let rows = "";
             if(Array.isArray(items)) {
                 items.forEach(i => { 
-                    // Handles both lowercase and uppercase keys from JSON
                     const d = i.description || i.Description || "-";
                     const q = i.qty || i.Qty || 0;
                     const p = i.price || i.Price || 0;
@@ -176,6 +175,8 @@
                 th,td{border:1px solid #ddd; padding:10px; text-align:${align}} 
                 th{background:#f4f4f4}
                 .summary-box { margin-top:20px; text-align:${lang === 'ur' ? 'left' : 'right'} }
+                .summary-row { margin: 5px 0; font-size: 14px; }
+                .grand-total { font-weight: bold; font-size: 18px; border-top: 2px solid #333; padding-top: 5px; margin-top: 10px; display: inline-block; min-width: 200px; }
             </style></head><body>
                 ${logoImg}
                 <h2 style="margin-top:0;">${user.business}</h2>
@@ -184,9 +185,12 @@
                 <table><thead><tr><th>${t.thDesc}</th><th>${t.thQty}</th><th>${t.thPrice}</th><th>${t.thTotal}</th></tr></thead>
                 <tbody>${rows}</tbody></table>
                 <div class="summary-box">
-                    <p>${t.thTotal}: ${parseFloat(inv.Total_Amount).toFixed(2)}</p>
-                    <p>${t.thPaid}: ${parseFloat(inv.Paid_Amount).toFixed(2)}</p>
-                    <h3>${t.thBal}: ${parseFloat(inv.Balance_Amount).toFixed(2)}</h3>
+                    <div class="summary-row">${t.thSubTotal}: ${parseFloat(inv.Sub_Total || 0).toFixed(2)}</div>
+                    <div class="summary-row">${t.thTax}: ${parseFloat(inv.Tax_Amount || 0).toFixed(2)}</div>
+                    <div class="summary-row">${t.thDiscount}: -${parseFloat(inv.Discount_Amount || 0).toFixed(2)}</div>
+                    <div class="summary-row grand-total">${t.thTotal}: ${parseFloat(inv.Total_Amount || 0).toFixed(2)}</div>
+                    <div class="summary-row">${t.thPaid}: ${parseFloat(inv.Paid_Amount || 0).toFixed(2)}</div>
+                    <div class="summary-row" style="color:#e74c3c"><strong>${t.thBal}: ${parseFloat(inv.Balance_Amount || 0).toFixed(2)}</strong></div>
                 </div>
                 <script>window.onload=function(){window.print();window.close();}<\/script>
             </body></html>`);
