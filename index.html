@@ -84,6 +84,32 @@
 
         #msg { text-align: center; font-size: 14px; margin-top: 15px; font-weight: 500; }
 
+        /* Payment Modal Styling */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 25px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+        .pay-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .pay-table td { padding: 15px; border: 1px solid #eee; }
+        .icon-img { width: 50px; height: 50px; object-fit: contain; }
+        .pay-num { font-size: 20px; font-weight: bold; color: #d32f2f; letter-spacing: 1px; }
+
         /* Footer Panel */
         footer {
             background: #333;
@@ -94,7 +120,6 @@
         .footer-content { margin-bottom: 10px; font-size: 14px; }
         .copyright { font-size: 12px; color: #bbb; }
 
-        /* Mobile Responsive adjustments */
         @media (max-width: 480px) {
             .card { padding: 20px; }
             header h1 { font-size: 20px; }
@@ -106,6 +131,43 @@
 <header>
     <h1>eInvoicer Panel</h1>
 </header>
+
+<div id="paymentModal" class="modal">
+    <div class="modal-content">
+        <h2 style="color: #d32f2f;">Account Expired!</h2>
+        <p>Your 15-day trial has ended. Please activate for lifetime access.</p>
+        
+        <table class="pay-table">
+            <tr>
+                <td>
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/2/25/JazzCash_logo.png" class="icon-img" alt="JazzCash">
+                    <br><strong>JazzCash</strong>
+                </td>
+                <td>
+                    <a href="https://wa.me/923001234567" target="_blank">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" class="icon-img" alt="WhatsApp">
+                        <br><strong>WhatsApp</strong>
+                    </a>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="2">
+                    <div class="pay-num">0300-1234567</div>
+                    <div style="font-size: 12px; color: #666;">(Account Holder: Muhammad Sam)</div>
+                </td>
+            </tr>
+        </table>
+
+        <div style="text-align: left; font-size: 13px; line-height: 1.5; background: #fffde7; padding: 10px; border-radius: 5px;">
+            <b>Instructions:</b><br>
+            1. Pay <b>Rs. 1500</b> to the above JazzCash account.<br>
+            2. Take a screenshot of the successful transaction.<br>
+            3. Send the screenshot to our WhatsApp for instant activation.
+        </div>
+        
+        <button onclick="location.reload()" style="background: #555;">Back to Login</button>
+    </div>
+</div>
 
 <div class="container">
     <div class="card" id="authBox">
@@ -145,10 +207,8 @@
 </footer>
 
 <script>
-// Set Current Year
 document.getElementById('year').innerText = new Date().getFullYear();
 
-// Your logic remains untouched
 const API_URL = "https://script.google.com/macros/s/AKfycbwpyyuTtbSv_2udttbXog8oUfq_vgFvr-y7DggVO-WXYkR4APnpB_0BS6TpSZLdnBrN/exec"; 
 
 let globalLogoBase64 = ""; 
@@ -229,26 +289,21 @@ async function doLogin() {
         const result = await response.json();
         
         if (result.status === "Success") {
-            // Save the main user object
             localStorage.setItem("user", JSON.stringify(result));
-
-            // CRITICAL FIX: Explicitly save clients and items
-            // We use || [] to ensure it's at least an empty list, never 'null'
             localStorage.setItem("clients", JSON.stringify(result.clients || []));
             localStorage.setItem("items", JSON.stringify(result.items || []));
 
-            console.log("Login Data Saved Successfully");
-            
             msg.style.color = "green";
             msg.innerText = "✅ Success! Redirecting...";
             setTimeout(() => {
                 window.location.href = "dashboard.html";
             }, 1000);
-        } else if (result.status === "Expired") {
-    msg.style.color = "orange";
-    msg.innerText = "⏳ " + result.message;
-}
-        
+        } 
+        else if (result.status === "Expired") {
+            // SHOW THE PAYMENT MODAL INSTEAD OF DASHBOARD
+            document.getElementById("paymentModal").style.display = "flex";
+            msg.innerText = "";
+        }
         else {
             msg.style.color = "red";
             msg.innerText = "❌ Invalid Credentials";
